@@ -1,4 +1,5 @@
-pragma solidity ^0.6.7;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.7.5;
 
 import "ds-test/test.sol";
 
@@ -7,9 +8,7 @@ import "./RadicleLbp.sol";
 contract RadicleLbpTest is DSTest {
     RadicleLbp lbp;
 
-    function setUp() public {
-        lbp = new RadicleLbp();
-    }
+    function setUp() public {}
 
     function testFail_basic_sanity() public {
         assertTrue(false);
