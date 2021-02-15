@@ -100,7 +100,7 @@ contract RadicleLbp {
         uint256 usdcTokenWeight = USDC_WEIGHT * BalancerConstants.BONE;
 
         Rights memory rights;
-        rights.canPauseSwapping = false;
+        rights.canPauseSwapping = true;
         rights.canChangeSwapFee = false;
         rights.canChangeWeights = true;
         rights.canAddRemoveTokens = false;
