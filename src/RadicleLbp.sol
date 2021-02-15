@@ -93,12 +93,15 @@ contract RadicleLbp {
     ) {
         ICRPFactory factory = ICRPFactory(crpFactory);
 
+        // RAD starting balance and weight.
         uint256 radTokenBalance = RAD_BALANCE * (10**_radToken.decimals());
         uint256 radTokenWeight = RAD_WEIGHT * BalancerConstants.BONE;
 
+        // USDC starting balance and weight.
         uint256 usdcTokenBalance = USDC_BALANCE * (10**_usdcToken.decimals());
         uint256 usdcTokenWeight = USDC_WEIGHT * BalancerConstants.BONE;
 
+        // Permissions on the pool.
         Rights memory rights;
         rights.canPauseSwapping = true;
         rights.canChangeSwapFee = false;
@@ -107,6 +110,7 @@ contract RadicleLbp {
         rights.canWhitelistLPs = true;
         rights.canChangeCap = false;
 
+        // Pool parameters.
         PoolParams memory params;
         params.poolTokenSymbol = "RADP";
         params.poolTokenName = "RAD Pool Token";
@@ -125,7 +129,7 @@ contract RadicleLbp {
         params.swapFee = BalancerConstants.MIN_FEE;
 
         IConfigurableRightsPool _crpPool = factory.newCrp(bFactory, params, rights);
-        _crpPool.whitelistLiquidityProvider(lp);
+        _crpPool.whitelistLiquidityProvider(lp); // Allow one LP to provide liquidity.
 
         // Create the sale contract and transfer ownership of the CRP to the sale contract.
         Sale _sale = new Sale(_crpPool, _radToken, _usdcToken, radTokenBalance, usdcTokenBalance);
@@ -164,6 +168,8 @@ contract Sale {
         usdcTokenBalance = _usdcTokenBalance;
     }
 
+    /// Begin the sale. Transfers balances from the sender into the
+    /// Balancer pool, and transfers the pool tokens to the sender.
     function begin(
         uint256 minimumWeightChangeBlockPeriod,
         uint256 addTokenTimeLockInBlocks,
@@ -182,6 +188,7 @@ contract Sale {
         radToken.approve(address(crpPool), radTokenBalance);
         usdcToken.approve(address(crpPool), usdcTokenBalance);
 
+        // How many pool tokens to mint.
         uint256 poolTokens = 100 * BalancerConstants.BONE;
 
         crpPool.createPool(poolTokens, minimumWeightChangeBlockPeriod, addTokenTimeLockInBlocks);
@@ -195,11 +202,15 @@ contract Sale {
         endWeights[0] = RAD_END_WEIGHT * BalancerConstants.BONE;
         endWeights[1] = USDC_END_WEIGHT * BalancerConstants.BONE;
 
+        // Start and end of the weight/price curve.
         uint256 startBlock = block.number + weightChangeStartDelay;
         uint256 endBlock = startBlock + minimumWeightChangeBlockPeriod;
 
+        // Kick-off the price curve.
         crpPool.updateWeightsGradually(endWeights, startBlock, endBlock);
+        // Transfer ownership of the pool tokens to the sender.
         crpPool.transfer(msg.sender, poolTokens);
+        // Set the pool controller, who can pause the sale.
         crpPool.setController(controller);
     }
 }
