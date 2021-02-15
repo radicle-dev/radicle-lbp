@@ -1,17 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.4;
-
-// Rinkeby TUSDT: 0xd92e713d051c37ebb2561803a3b5fbabc4962431
-// Rinkeby RAD: 0x66eF97b9EDE0c21EFc19c98a66245cd7C9791e28
-// Rinkeyby Core Pool Factory (BFactory): 0x9C84391B443ea3a48788079a5f98e2EaD55c9309
-// Rinkeby CRP Factory: 0xA3F9145CB0B50D907930840BB2dcfF4146df8Ab4
-// minimumWeightChangeBlockPeriod = 2 days (12800 blocks)
-// addTokenTimeLockInBlocks = 1 hour (266 blocks)
-//
-// radToken.approve(address(sale), radTokenBalance);
-// usdcToken.approve(address(sale), usdcTokenBalance);
-// begin(12800, 266, 266)
-
 pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -213,9 +201,5 @@ contract Sale {
         crpPool.updateWeightsGradually(endWeights, startBlock, endBlock);
         crpPool.transfer(msg.sender, poolTokens);
         crpPool.setController(controller);
-    }
-
-    function bPool() public view returns (address) {
-        return crpPool.bPool();
     }
 }
