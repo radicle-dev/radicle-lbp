@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu -o pipefail
 
+source ./env
+
 if ! [[ -v GAS_PRICE && -v ETH_KEYSTORE && -v ETH_RPC_URL && -v SETH_CHAIN && -v ETH_FROM ]]; then
   echo "fatal: variables not set"
   exit 1
@@ -13,4 +15,4 @@ fi
 
 CRP=$(seth call $SALE 'crpPool()(address)')
 
-seth send $CRP "pokeWeights()" -P $GAS_PRICE
+seth send --gas 200000 $CRP "pokeWeights()" -P $GAS_PRICE

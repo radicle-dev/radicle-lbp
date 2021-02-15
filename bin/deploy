@@ -1,10 +1,7 @@
 #!/bin/sh
 set -eu -o pipefail
 
-RAD="0x66eF97b9EDE0c21EFc19c98a66245cd7C9791e28"
-USDC="0xd92e713d051c37ebb2561803a3b5fbabc4962431"
-BFACTORY="0x9C84391B443ea3a48788079a5f98e2EaD55c9309"
-CRPFACTORY="0xA3F9145CB0B50D907930840BB2dcfF4146df8Ab4"
+source ./env
 
 if ! [[ -v GAS_PRICE && -v ETH_KEYSTORE && -v ETH_RPC_URL && -v SETH_CHAIN && -v ETH_FROM ]]; then
   echo "fatal: variables not set"

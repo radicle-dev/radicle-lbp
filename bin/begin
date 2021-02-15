@@ -2,8 +2,8 @@
 set -eu -o pipefail
 
 GAS=6000000
-RAD="0x66eF97b9EDE0c21EFc19c98a66245cd7C9791e28"
-USDC="0xd92e713d051c37ebb2561803a3b5fbabc4962431"
+
+source ./env
 
 if ! [[ -v GAS_PRICE && -v ETH_KEYSTORE && -v ETH_RPC_URL && -v SETH_CHAIN && -v ETH_FROM ]]; then
   echo "fatal: variables not set"
