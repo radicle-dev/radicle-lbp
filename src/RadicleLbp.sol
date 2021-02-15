@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.5;
+pragma solidity ^0.7.4;
 
 // Rinkeby TUSDT: 0xd92e713d051c37ebb2561803a3b5fbabc4962431
 // Rinkeby RAD: 0x66eF97b9EDE0c21EFc19c98a66245cd7C9791e28

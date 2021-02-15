@@ -1,0 +1,35 @@
+#!/bin/sh
+set -eu -o pipefail
+
+if ! [[ -v GAS_PRICE && -v ETH_KEYSTORE && -v ETH_RPC_URL && -v SETH_CHAIN && -v ETH_FROM ]]; then
+  echo "fatal: variables not set"
+  exit 1
+fi
+
+if ! [[ -v SALE ]]; then
+  echo "fatal: SALE must be set"
+  exit 1
+fi
+
+RAD="0x66eF97b9EDE0c21EFc19c98a66245cd7C9791e28"
+USDC="0xd92e713d051c37ebb2561803a3b5fbabc4962431"
+CRP=$(seth call $SALE 'crpPool()(address)')
+POOL=$(seth call $CRP 'bPool()(address)')
+
+echo "Sale at $SALE"
+echo "RAD at $RAD"
+echo "USDC at $USDC"
+echo "Balancer Pool at $POOL"
+echo "CRP Pool at $CRP"
+echo "Balancer Pool at $POOL"
+
+echo "RAD spot price: $(seth call $POOL 'getSpotPrice(address,address)(uint256)' $USDC $RAD)"
+
+echo "RAD balance: $(seth call $POOL 'getBalance(address)(uint256)' $RAD)"
+echo "USDC balance: $(seth call $POOL 'getBalance(address)(uint256)' $USDC)"
+
+echo "RAD denorm weights: $(seth --from-wei $(seth call $POOL 'getDenormalizedWeight(address)(uint256)' $RAD))"
+echo "USDC denorm weights: $(seth --from-wei $(seth call $POOL 'getDenormalizedWeight(address)(uint256)' $USDC))"
+
+echo "RAD norm weights: $(seth --from-wei $(seth call $POOL 'getNormalizedWeight(address)(uint256)' $RAD))"
+echo "USDC norm weights: $(seth --from-wei $(seth call $POOL 'getNormalizedWeight(address)(uint256)' $USDC))"

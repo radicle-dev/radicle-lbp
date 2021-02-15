@@ -1,0 +1,51 @@
+#!/bin/sh
+set -eu -o pipefail
+
+GAS=6000000
+RAD="0x66eF97b9EDE0c21EFc19c98a66245cd7C9791e28"
+USDC="0xd92e713d051c37ebb2561803a3b5fbabc4962431"
+
+if ! [[ -v GAS_PRICE && -v ETH_KEYSTORE && -v ETH_RPC_URL && -v SETH_CHAIN && -v ETH_FROM ]]; then
+  echo "fatal: variables not set"
+  exit 1
+fi
+
+if ! [[ -v CONTROLLER ]]; then
+  echo "fatal: CONTROLLER must be set"
+  exit 1
+fi
+
+if ! [[ -v SALE ]]; then
+  echo "fatal: SALE must be set"
+  exit 1
+fi
+
+# Mainnet
+# RAD_BALANCE=4000000000000000000000000
+# USDC_BALANCE=3000000000000
+# MIN_WEIGHT_CHANGE_PERIOD=12800 # 2 days
+# ADD_TOKEN_TIMELOCK_PERIOD=266 # 1 hour
+# WEIGHT_CHANGE_START_DELAY=266 # 1 hour
+
+# Rinkeby
+RAD_BALANCE=40000000000000000000
+USDC_BALANCE=30000000
+MIN_WEIGHT_CHANGE_PERIOD=480
+ADD_TOKEN_TIMELOCK_PERIOD=10
+WEIGHT_CHANGE_START_DELAY=10
+
+echo "Controller is $CONTROLLER"
+echo "Sale at $SALE"
+echo "RAD balance is $RAD_BALANCE"
+echo "USDC balance is $USDC_BALANCE"
+
+read -p ">>> Proceed? <<< " -r
+
+seth send --gas $GAS "$RAD"  "approve(address,uint256)" "$SALE" $RAD_BALANCE  -P $GAS_PRICE
+seth send --gas $GAS "$USDC" "approve(address,uint256)" "$SALE" $USDC_BALANCE -P $GAS_PRICE
+seth send --gas $GAS "$SALE" "begin(uint256,uint256,uint256,address)" \
+  $MIN_WEIGHT_CHANGE_PERIOD \
+  $ADD_TOKEN_TIMELOCK_PERIOD \
+  $WEIGHT_CHANGE_START_DELAY \
+  $CONTROLLER \
+  -P $GAS_PRICE

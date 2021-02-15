@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu -o pipefail
+
+if ! [[ -v GAS_PRICE && -v ETH_KEYSTORE && -v ETH_RPC_URL && -v SETH_CHAIN && -v ETH_FROM ]]; then
+  echo "fatal: variables not set"
+  exit 1
+fi
+
+if ! [[ -v SALE ]]; then
+  echo "fatal: SALE must be set"
+  exit 1
+fi
+
+AMOUNT="$1"
+RAD="0x66eF97b9EDE0c21EFc19c98a66245cd7C9791e28"
+USDC="0xd92e713d051c37ebb2561803a3b5fbabc4962431"
+GAS=200000
+
+CRP=$(seth call $SALE 'crpPool()(address)')
+POOL=$(seth call $CRP 'bPool()(address)')
+
+echo "Pool at $POOL"
+
+seth send --gas $GAS "$USDC" "approve(address,uint256)" "$POOL" "$AMOUNT" -P $GAS_PRICE
+seth send --gas $GAS "$POOL" "swapExactAmountIn(address,uint256,address,uint256,uint256)(uint256,uint256)" \
+  "$USDC" "$AMOUNT" "$RAD" 1 20000000 -P $GAS_PRICE
