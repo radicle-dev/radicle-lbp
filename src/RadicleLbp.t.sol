@@ -151,11 +151,11 @@ contract RadicleLbpTest is DSTest {
         proposer   = new Proposer(rad, usdc, gov);
         foundation = new User(gov, IERC20(USDC_ADDR));
 
-        // Set USDC balance of contract to $3M.
+        // Set USDC balance of contract to $10M.
         hevm.store(
             USDC_ADDR,
             keccak256(abi.encode(address(this), uint256(9))),
-            bytes32(uint(3_000_000e6))
+            bytes32(uint(10_000_000e6))
         );
 
         require(address(timelock) != address(0));
@@ -163,8 +163,6 @@ contract RadicleLbpTest is DSTest {
 
         assertEq(IERC20Decimal(RAD_ADDR).decimals(), uint(18));
         assertEq(IERC20Decimal(USDC_ADDR).decimals(), uint(6));
-
-        usdc.transfer(address(foundation), 3_000_000e6);
 
         // Transfer enough to make proposals (1%).
         rad.transfer(address(proposer), 1_000_000e18);
@@ -181,16 +179,6 @@ contract RadicleLbpTest is DSTest {
         // 4. After voting period ends, Proposer executes proposal
         // 5. LBP is now created, and buying and selling starts
 
-        uint256 radAmount = 4_000_000e18;
-        uint256 usdAmount = 3_000_000e6;
-
-        assertEq(rad.balanceOf(address(proposer)), uint(1_000_000e18));
-        assertEq(rad.getCurrentVotes(address(proposer)), uint(1_000_000e18), "Proposer has enough voting power");
-        assertEq(usdc.balanceOf(address(foundation)), uint(3_000_000e6));
-
-        // Provide liquidity to treasury.
-        foundation.transfer(address(timelock), usdAmount);
-
         User deployer = new User(gov, IERC20(address(rad)));
         RadicleLbp lbp = deployer.deployLbp(
             BPOOL_FACTORY,
@@ -199,6 +187,12 @@ contract RadicleLbpTest is DSTest {
             address(usdc),
             address(timelock)
         );
+        uint256 radAmount = lbp.RAD_BALANCE();
+        uint256 usdAmount = lbp.USDC_BALANCE();
+
+        assertEq(rad.balanceOf(address(proposer)), uint(1_000_000e18));
+        assertEq(rad.getCurrentVotes(address(proposer)), uint(1_000_000e18), "Proposer has enough voting power");
+
         Sale sale = lbp.sale();
 
         assertEq(sale.radTokenBalance(), radAmount);
@@ -226,13 +220,17 @@ contract RadicleLbpTest is DSTest {
         hevm.roll(block.number + gov.votingPeriod());
         assertEq(uint(gov.state(proposal)), 4, "Proposal suucceeded");
 
+        // The proposal has now passed, we can queue it and execute it.
+        gov.queue(proposal);
+        assertEq(uint(gov.state(proposal)), 5, "Proposal queued");
+
+        // Provide liquidity to treasury during the timelock delay period.
+        usdc.transfer(address(timelock), usdAmount);
+
         // Keep track of timelock balances before proposal is executed.
         uint256 timelockRad = rad.balanceOf(address(timelock));
         uint256 timelockUsdc = usdc.balanceOf(address(timelock));
 
-        // The proposal has now passed, we can queue it and execute it.
-        gov.queue(proposal);
-        assertEq(uint(gov.state(proposal)), 5, "Proposal queued");
         hevm.warp(block.timestamp + 2 days); // Timelock delay
         gov.execute(proposal);
         assertEq(uint(gov.state(proposal)), 7, "Proposal executed");

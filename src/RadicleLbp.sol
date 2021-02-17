@@ -77,11 +77,11 @@ contract RadicleLbp {
     IERC20Decimal public immutable usdcToken;
     Sale public immutable sale;
 
-    uint256 public constant RAD_BALANCE = 4000000; // 4 million RAD
-    uint256 public constant USDC_BALANCE = 3000000; // 3 million USDC
-    uint256 public constant RAD_WEIGHT = 38;
-    uint256 public constant USDC_WEIGHT = 2;
-    uint256 public constant SWAP_FEE = 3e15; // 0.3%
+    uint256 public constant RAD_BALANCE = 3750000e18; // 3.75 million RAD
+    uint256 public constant USDC_BALANCE = 3500000e6; // 3.5 million USDC
+    uint256 public constant RAD_WEIGHT = 37;
+    uint256 public constant USDC_WEIGHT = 3;
+    uint256 public constant SWAP_FEE = 5e15; // 0.5%
 
     constructor(
         address bFactory,
@@ -93,11 +93,9 @@ contract RadicleLbp {
         ICRPFactory factory = ICRPFactory(crpFactory);
 
         // RAD starting balance and weight.
-        uint256 radTokenBalance = RAD_BALANCE * (10**18);
         uint256 radTokenWeight = RAD_WEIGHT * BalancerConstants.BONE;
 
         // USDC starting balance and weight.
-        uint256 usdcTokenBalance = USDC_BALANCE * (10**6);
         uint256 usdcTokenWeight = USDC_WEIGHT * BalancerConstants.BONE;
 
         // Permissions on the pool.
@@ -119,11 +117,11 @@ contract RadicleLbp {
         params.tokenWeights = new uint256[](2);
 
         params.constituentTokens[0] = address(_radToken);
-        params.tokenBalances[0] = radTokenBalance;
+        params.tokenBalances[0] = RAD_BALANCE;
         params.tokenWeights[0] = radTokenWeight;
 
         params.constituentTokens[1] = address(_usdcToken);
-        params.tokenBalances[1] = usdcTokenBalance;
+        params.tokenBalances[1] = USDC_BALANCE;
         params.tokenWeights[1] = usdcTokenWeight;
         params.swapFee = SWAP_FEE;
 
@@ -131,7 +129,7 @@ contract RadicleLbp {
         _crpPool.whitelistLiquidityProvider(lp); // Allow one LP to provide liquidity.
 
         // Create the sale contract and transfer ownership of the CRP to the sale contract.
-        Sale _sale = new Sale(_crpPool, _radToken, _usdcToken, radTokenBalance, usdcTokenBalance);
+        Sale _sale = new Sale(_crpPool, _radToken, _usdcToken, RAD_BALANCE, USDC_BALANCE);
         _crpPool.setController(address(_sale));
 
         sale = _sale;
