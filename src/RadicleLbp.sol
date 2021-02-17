@@ -126,10 +126,9 @@ contract RadicleLbp {
         params.swapFee = SWAP_FEE;
 
         IConfigurableRightsPool _crpPool = factory.newCrp(bFactory, params, rights);
-        _crpPool.whitelistLiquidityProvider(lp); // Allow one LP to provide liquidity.
 
         // Create the sale contract and transfer ownership of the CRP to the sale contract.
-        Sale _sale = new Sale(_crpPool, _radToken, _usdcToken, RAD_BALANCE, USDC_BALANCE);
+        Sale _sale = new Sale(_crpPool, _radToken, _usdcToken, RAD_BALANCE, USDC_BALANCE, lp);
         _crpPool.setController(address(_sale));
 
         sale = _sale;
@@ -150,18 +149,22 @@ contract Sale {
     uint256 public constant RAD_END_WEIGHT = 20;
     uint256 public constant USDC_END_WEIGHT = 20;
 
+    address lp;
+
     constructor(
         IConfigurableRightsPool _crpPool,
         IERC20 _radToken,
         IERC20 _usdcToken,
         uint256 _radTokenBalance,
-        uint256 _usdcTokenBalance
+        uint256 _usdcTokenBalance,
+        address _lp
     ) {
         crpPool = _crpPool;
         radToken = _radToken;
         usdcToken = _usdcToken;
         radTokenBalance = _radTokenBalance;
         usdcTokenBalance = _usdcTokenBalance;
+        lp = _lp;
     }
 
     /// Begin the sale. Transfers balances from the sender into the
@@ -171,6 +174,10 @@ contract Sale {
         uint256 weightChangeStartDelay,
         address controller
     ) public {
+        require(
+            msg.sender == lp,
+            "Sale::begin: only the LP can call this function"
+        );
         require(
             controller != address(0),
             "Sale::begin: the controller must be set"
