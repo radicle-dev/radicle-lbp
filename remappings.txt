@@ -1,3 +1,4 @@
 @openzeppelin/=lib/openzeppelin-contracts/
 @ensdomains/=./lib/
 ds-test/=lib/ds-test/src/
+radicle-contracts/=lib/radicle-contracts/contracts/
