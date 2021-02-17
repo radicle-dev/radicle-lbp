@@ -3,10 +3,10 @@ The steps for the sale:
 0. Radicle governance system is deployed.
 1. DEPLOYER deploys `RadicleLbp` contract, which deploys `Sale` contract.
 2. PROPOSER gathers 1M RAD in delegated votes.
-3. PROPOSER proposes the radicle sale, which calls `Sale::begin`. Pool shares (RADP) are minted for the Timelock.
+3. PROPOSER proposes the radicle sale, which calls `Sale::begin`.
 4. Voting begins.
 5. After voting ends, PROPOSER queues the proposal.
 6. FOUNDATION transfers USDC balance to the `Timelock` contract, during timelock delay period.
 7. Timelock delay (2 days) period elapses.
 8. PROPOSER or someone else executes proposal.
-9. LBP is now created. Buying and selling starts.
+9. LBP is now created. Buying and selling starts. Pool shares (RADP) are minted for the Timelock.
