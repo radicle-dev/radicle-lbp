@@ -205,7 +205,7 @@ contract RadicleLbpTest is DSTest {
         assertEq(sale.usdcTokenBalance(), usdAmount);
 
         IConfigurableRightsPool crpPool = IConfigurableRightsPool(sale.crpPool());
-        assertEq(crpPool.getController(), address(sale));
+        assertEq(crpPool.getController(), address(sale), "The sale is in control of the CRP");
 
         require(address(proposer) != address(0), "Proposer address can't be zero");
         uint proposal = proposer.propose(
@@ -216,14 +216,15 @@ contract RadicleLbpTest is DSTest {
             WEIGHT_CHANGE_DELAY,
             address(this)
         );
+        assertEq(uint(gov.state(proposal)), 0, "Proposal pending");
         hevm.roll(block.number + gov.votingDelay() + 1);
-        assertEq(uint(gov.state(proposal)), 1);
+        assertEq(uint(gov.state(proposal)), 1, "Proposal active");
 
         // Vote for the proposal.
         gov.castVote(proposal, true);
         // Let some time pass, and check that the proposal succeeded.
         hevm.roll(block.number + gov.votingPeriod());
-        assertEq(uint(gov.state(proposal)), 4);
+        assertEq(uint(gov.state(proposal)), 4, "Proposal suucceeded");
 
         // Keep track of timelock balances before proposal is executed.
         uint256 timelockRad = rad.balanceOf(address(timelock));
@@ -231,10 +232,10 @@ contract RadicleLbpTest is DSTest {
 
         // The proposal has now passed, we can queue it and execute it.
         gov.queue(proposal);
-        assertEq(uint(gov.state(proposal)), 5);
+        assertEq(uint(gov.state(proposal)), 5, "Proposal queued");
         hevm.warp(block.timestamp + 2 days); // Timelock delay
         gov.execute(proposal);
-        assertEq(uint(gov.state(proposal)), 7);
+        assertEq(uint(gov.state(proposal)), 7, "Proposal executed");
 
         // Proposal is now executed. The sale has started.
         BPool bPool = BPool(crpPool.bPool());
@@ -245,5 +246,6 @@ contract RadicleLbpTest is DSTest {
         assertEq(bPool.getController(), address(crpPool), "Pool is controlled by CRP");
         assertEq(bPool.getBalance(address(rad)), radAmount);
         assertEq(bPool.getBalance(address(usdc)), usdAmount);
+        assertEq(crpPool.getController(), address(this), "The CRP controller was transferred");
     }
 }
