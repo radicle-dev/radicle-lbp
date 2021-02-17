@@ -19,10 +19,15 @@ POOL=$(seth call $CRP 'bPool()(address)')
 echo "Sale at $SALE"
 echo "RAD at $RAD"
 echo "USDC at $USDC"
-echo "Balancer Pool at $POOL"
 echo "CRP Pool at $CRP"
+echo "CRP Pool controller is $(seth call $CRP 'getController()(address)')"
+
+echo "RAD sale balance: $(seth call $SALE 'radTokenBalance()(uint256)')"
+echo "USDC sale balance: $(seth call $SALE 'usdcTokenBalance()(uint256)')"
+
 echo "Balancer Pool at $POOL"
 
+echo "Pool controller is $(seth call $POOL 'getController()(address)')"
 echo "RAD spot price: $(seth call $POOL 'getSpotPrice(address,address)(uint256)' $USDC $RAD)"
 
 echo "RAD balance: $(seth call $POOL 'getBalance(address)(uint256)' $RAD)"

@@ -43,6 +43,7 @@ interface IConfigurableRightsPool is IERC20 {
     function whitelistLiquidityProvider(address provider) external;
 
     function setController(address newOwner) external;
+    function getController() external returns (address);
 
     function createPool(
         uint256 initialSupply,
@@ -72,7 +73,6 @@ interface IERC20Decimal is IERC20 {
 }
 
 contract RadicleLbp {
-    IConfigurableRightsPool public immutable crpPool;
     IERC20Decimal public immutable radToken;
     IERC20Decimal public immutable usdcToken;
     Sale public immutable sale;
@@ -135,7 +135,6 @@ contract RadicleLbp {
         _crpPool.setController(address(_sale));
 
         sale = _sale;
-        crpPool = _crpPool;
         radToken = _radToken;
         usdcToken = _usdcToken;
     }
@@ -175,7 +174,7 @@ contract Sale {
         address controller
     ) public {
         require(
-            controller == address(0),
+            controller != address(0),
             "Sale::begin: the controller must be set"
         );
         require(
@@ -185,6 +184,10 @@ contract Sale {
         require(
             usdcToken.transferFrom(msg.sender, address(this), usdcTokenBalance),
             "Sale::begin: transfer of USDC must succeed"
+        );
+        require(
+            crpPool.getController() == address(this),
+            "Sale::begin: sale must be controller"
         );
 
         radToken.approve(address(crpPool), radTokenBalance);
