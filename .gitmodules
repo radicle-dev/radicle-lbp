@@ -19,3 +19,6 @@
 [submodule "lib/ds-auth"]
 	path = lib/ds-auth
 	url = https://github.com/dapphub/ds-auth
+[submodule "lib/configurable-rights-pool"]
+	path = lib/configurable-rights-pool
+	url = https://github.com/balancer-labs/configurable-rights-pool
