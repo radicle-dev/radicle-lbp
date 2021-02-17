@@ -12,7 +12,6 @@ import {Timelock}     from "radicle-contracts/Governance/Timelock.sol";
 
 import {ENS}          from "@ensdomains/ens/contracts/ENS.sol";
 import {IERC20}       from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {DSToken}      from "../lib/ds-token/src/token.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -41,7 +40,7 @@ contract USDUser {
 
 contract Proposer {
     RadicleToken rad;
-    IERC20         usd;
+    IERC20       usd;
     Governor     gov;
 
     constructor(RadicleToken rad_, IERC20 usd_, Governor gov_) {
@@ -60,6 +59,8 @@ contract Proposer {
         address sale,
         uint256 radAmount,
         uint256 usdAmount,
+        uint256 weightChangeDuration,
+        uint256 weightChangeDelay,
         address controller
     ) public returns (uint) {
         address[] memory targets = new address[](3);
@@ -80,7 +81,7 @@ contract Proposer {
         targets[2] = sale;
         values[2] = 0;
         sigs[2] = "begin(uint256,uint256,address)";
-        calldatas[2] = abi.encode(uint256(480), uint256(10), controller);
+        calldatas[2] = abi.encode(uint256(weightChangeDuration), uint256(weightChangeDelay), controller);
 
         return gov.propose(targets, values, sigs, calldatas, "");
     }
@@ -129,6 +130,10 @@ contract RadicleLbpTest is DSTest {
     address constant CRP_FACTORY   = 0xed52D8E202401645eDAD1c0AA21e872498ce47D0; // CRP factory (Mainnet)
     address constant RAD_ADDR      = 0x31c8EAcBFFdD875c74b94b077895Bd78CF1E64A3; // RAD (Mainnet)
     address constant USDC_ADDR     = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC (Mainnet)
+
+    // Durations in blocks.
+    uint256 constant WEIGHT_CHANGE_DURATION = 12800; // 2 days
+    uint256 constant WEIGHT_CHANGE_DELAY    = 266; // 1 hour
 
     USDUser foundation;
     Proposer proposer;
@@ -212,6 +217,8 @@ contract RadicleLbpTest is DSTest {
             address(sale),
             radAmount,
             usdAmount,
+            WEIGHT_CHANGE_DURATION,
+            WEIGHT_CHANGE_DELAY,
             address(this)
         );
         hevm.roll(block.number + gov.votingDelay() + 1);
