@@ -93,11 +93,11 @@ contract RadicleLbp {
         ICRPFactory factory = ICRPFactory(crpFactory);
 
         // RAD starting balance and weight.
-        uint256 radTokenBalance = RAD_BALANCE * (10**_radToken.decimals());
+        uint256 radTokenBalance = RAD_BALANCE * (10**18);
         uint256 radTokenWeight = RAD_WEIGHT * BalancerConstants.BONE;
 
         // USDC starting balance and weight.
-        uint256 usdcTokenBalance = USDC_BALANCE * (10**_usdcToken.decimals());
+        uint256 usdcTokenBalance = USDC_BALANCE * (10**6);
         uint256 usdcTokenWeight = USDC_WEIGHT * BalancerConstants.BONE;
 
         // Permissions on the pool.

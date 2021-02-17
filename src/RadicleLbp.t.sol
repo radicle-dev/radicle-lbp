@@ -11,6 +11,7 @@ import {Governor}     from "radicle-contracts/Governance/Governor.sol";
 import {Timelock}     from "radicle-contracts/Governance/Timelock.sol";
 
 import {ENS}          from "@ensdomains/ens/contracts/ENS.sol";
+import {IERC20}       from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {DSToken}      from "../lib/ds-token/src/token.sol";
 
 interface Hevm {
@@ -21,10 +22,18 @@ interface Hevm {
     function addr(uint) external returns (address);
 }
 
-contract USDUser {
-    DSToken usd;
+interface BPool {
+    function getBalance(address) external returns (uint256);
+}
 
-    constructor(DSToken usd_) {
+contract USDC is DSToken("USDC") {
+    constructor() {}
+}
+
+contract USDUser {
+    USDC usd;
+
+    constructor(USDC usd_) {
         usd = usd_;
     }
 
@@ -33,31 +42,62 @@ contract USDUser {
     }
 }
 
-contract RadUser {
+contract Proposer {
     RadicleToken rad;
+    USDC         usd;
     Governor     gov;
 
-    constructor(RadicleToken rad_, Governor gov_, Timelock timelock_) {
+    constructor(RadicleToken rad_, USDC usd_, Governor gov_) {
+        require(address(gov_) != address(0), "Governance must not be zero");
+
         rad = rad_;
+        usd = usd_;
         gov = gov_;
     }
 
-    function transfer(address to, uint amt) public {
-        rad.transfer(to, amt);
+    function delegate(address addr) public {
+        rad.delegate(addr);
     }
 
-    function propose(address target, string memory sig, bytes memory cd) public returns (uint) {
-        address[] memory targets = new address[](1);
-        uint[] memory values = new uint[](1);
-        string[] memory sigs = new string[](1);
-        bytes[] memory calldatas = new bytes[](1);
+    function propose(
+        address sale,
+        uint256 radAmount,
+        uint256 usdAmount,
+        address controller
+    ) public returns (uint) {
+        address[] memory targets = new address[](3);
+        uint[] memory values = new uint[](3);
+        string[] memory sigs = new string[](3);
+        bytes[] memory calldatas = new bytes[](3);
 
-        targets[0] = target;
+        targets[0] = address(rad);
         values[0] = 0;
-        sigs[0] = sig;
-        calldatas[0] = cd;
+        sigs[0] = "approve(address,uint256)";
+        calldatas[0] = abi.encode(sale, radAmount);
+
+        targets[1] = address(usd);
+        values[1] = 0;
+        sigs[1] = "approve(address,uint256)";
+        calldatas[1] = abi.encode(sale, usdAmount);
+
+        targets[2] = sale;
+        values[2] = 0;
+        sigs[2] = "begin(uint256,uint256,address)";
+        calldatas[2] = abi.encode(uint256(480), uint256(10), controller);
 
         return gov.propose(targets, values, sigs, calldatas, "");
+    }
+
+    function queue(uint proposalId) public {
+        gov.queue(proposalId);
+    }
+}
+
+contract RadUser {
+    Governor     gov;
+
+    constructor(Governor gov_) {
+        gov = gov_;
     }
 
     function queue(uint proposalId) public {
@@ -68,21 +108,33 @@ contract RadUser {
         gov.castVote(proposalId, support);
     }
 
-    function deployLbp() public {
+    function deployLbp(address bPool, address crpPool, address rad, address usd, address lp) public returns (RadicleLbp) {
+        RadicleLbp lbp = new RadicleLbp(
+            bPool,
+            crpPool,
+            IERC20Decimal(rad),
+            IERC20Decimal(usd),
+            lp
+        );
+        return lbp;
     }
 }
 
 contract RadicleLbpTest is DSTest {
     Governor gov;
     RadicleToken rad;
-    DSToken usd;
+    USDC usdc = new USDC();
     Timelock timelock;
     RadicleLbp lbp;
     Hevm hevm = Hevm(HEVM_ADDRESS);
 
+    address constant BPOOL_FACTORY = 0x9424B1412450D0f8Fc2255FAf6046b98213B76Bd; // BPool factory (Mainnet)
+    address constant CRP_FACTORY   = 0xed52D8E202401645eDAD1c0AA21e872498ce47D0; // CRP factory (Mainnet)
+    address constant RAD_ADDR      = 0x31c8EAcBFFdD875c74b94b077895Bd78CF1E64A3; // RAD (Mainnet)
+    address constant USDC_ADDR     = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC (Mainnet)
+
     USDUser foundation;
-    RadUser deployer;
-    RadUser proposer;
+    Proposer proposer;
 
     function setUp() public {
         // Deploy radicle governance.
@@ -98,12 +150,22 @@ contract RadicleLbpTest is DSTest {
         rad      = phase0.token();
         timelock = phase0.timelock();
         gov      = phase0.governor();
+        proposer = new Proposer(rad, usdc, gov);
+        foundation = new USDUser(usdc);
 
-        usd = new DSToken("USDC");
-        foundation = new USDUser(usd);
+        require(address(timelock) != address(0));
+        require(address(gov) != address(0));
 
-        usd.mint(100_000_000 ether);
-        usd.transfer(address(foundation), 3_000_000 ether);
+        assertEq(IERC20Decimal(RAD_ADDR).decimals(), uint(18));
+        assertEq(IERC20Decimal(USDC_ADDR).decimals(), uint(6));
+
+        usdc.mint(100_000_000e6);
+        usdc.transfer(address(foundation), 3_000_000e6);
+
+        // Transfer enough to make proposals (1%).
+        rad.transfer(address(proposer), 1_000_000e18);
+        proposer.delegate(address(proposer));
+        hevm.roll(block.number + 1);
     }
 
     function test_lbp_proposal() public {
@@ -114,7 +176,38 @@ contract RadicleLbpTest is DSTest {
         // 4. After voting period ends, Proposer executes proposal
         // 5. LBP is now created, and buying and selling starts
 
+        uint256 radAmount = 4_000_000e18;
+        uint256 usdAmount = 3_000_000e6;
+
+        assertEq(rad.balanceOf(address(proposer)), uint(1_000_000e18));
+        assertEq(rad.getCurrentVotes(address(proposer)), uint(1_000_000e18), "Proposer has enough voting power");
+        assertEq(usdc.balanceOf(address(foundation)), uint(3_000_000e6));
+
         // Provide liquidity to treasury.
-        foundation.transfer(address(timelock), 3_000_000 ether);
+        foundation.transfer(address(timelock), usdAmount);
+
+        RadUser deployer = new RadUser(gov);
+        RadicleLbp lbp = deployer.deployLbp(
+            BPOOL_FACTORY,
+            CRP_FACTORY,
+            address(rad),
+            address(usdc),
+            address(timelock)
+        );
+        Sale sale = lbp.sale();
+
+        assertEq(sale.usdcTokenBalance(), 3_000_000e6);
+        assertEq(sale.radTokenBalance(), 4_000_000e18);
+
+        IConfigurableRightsPool crpPool = IConfigurableRightsPool(sale.crpPool());
+        assertEq(crpPool.getController(), address(sale));
+
+        require(address(proposer) != address(0), "Proposer address can't be zero");
+        proposer.propose(
+            address(sale),
+            radAmount,
+            usdAmount,
+            address(this)
+        );
     }
 }
