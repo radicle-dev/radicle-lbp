@@ -26,15 +26,37 @@ interface BPool {
     function getController() external returns (address);
 }
 
-contract USDUser {
-    IERC20 usd;
+contract User {
+    Governor gov;
+    IERC20 token;
 
-    constructor(IERC20 usd_) {
-        usd = usd_;
+    constructor(Governor gov_, IERC20 token_) {
+        gov = gov_;
+        token = token_;
     }
 
     function transfer(address to, uint amt) public {
-        usd.transfer(to, amt);
+        token.transfer(to, amt);
+    }
+
+    function queue(uint proposalId) public {
+        gov.queue(proposalId);
+    }
+
+    function castVote(uint proposalId, bool support) public {
+        gov.castVote(proposalId, support);
+    }
+
+    function deployLbp(address bPool, address crpPool, address rad, address usd, address lp) public returns (RadicleLbp) {
+        require(rad == address(token));
+        RadicleLbp lbp = new RadicleLbp(
+            bPool,
+            crpPool,
+            IERC20Decimal(rad),
+            IERC20Decimal(usd),
+            lp
+        );
+        return lbp;
     }
 }
 
@@ -91,33 +113,6 @@ contract Proposer {
     }
 }
 
-contract RadUser {
-    Governor     gov;
-
-    constructor(Governor gov_) {
-        gov = gov_;
-    }
-
-    function queue(uint proposalId) public {
-        gov.queue(proposalId);
-    }
-
-    function castVote(uint proposalId, bool support) public {
-        gov.castVote(proposalId, support);
-    }
-
-    function deployLbp(address bPool, address crpPool, address rad, address usd, address lp) public returns (RadicleLbp) {
-        RadicleLbp lbp = new RadicleLbp(
-            bPool,
-            crpPool,
-            IERC20Decimal(rad),
-            IERC20Decimal(usd),
-            lp
-        );
-        return lbp;
-    }
-}
-
 contract RadicleLbpTest is DSTest {
     Governor gov;
     RadicleToken rad;
@@ -135,7 +130,7 @@ contract RadicleLbpTest is DSTest {
     uint256 constant WEIGHT_CHANGE_DURATION = 12800; // 2 days
     uint256 constant WEIGHT_CHANGE_DELAY    = 266; // 1 hour
 
-    USDUser foundation;
+    User foundation;
     Proposer proposer;
 
     function setUp() public {
@@ -154,7 +149,7 @@ contract RadicleLbpTest is DSTest {
         timelock   = phase0.timelock();
         gov        = phase0.governor();
         proposer   = new Proposer(rad, usdc, gov);
-        foundation = new USDUser(IERC20(USDC_ADDR));
+        foundation = new User(gov, IERC20(USDC_ADDR));
 
         // Set USDC balance of contract to $3M.
         hevm.store(
@@ -196,7 +191,7 @@ contract RadicleLbpTest is DSTest {
         // Provide liquidity to treasury.
         foundation.transfer(address(timelock), usdAmount);
 
-        RadUser deployer = new RadUser(gov);
+        User deployer = new User(gov, IERC20(address(rad)));
         RadicleLbp lbp = deployer.deployLbp(
             BPOOL_FACTORY,
             CRP_FACTORY,
