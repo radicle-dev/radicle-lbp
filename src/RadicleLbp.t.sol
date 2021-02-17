@@ -201,8 +201,8 @@ contract RadicleLbpTest is DSTest {
         );
         Sale sale = lbp.sale();
 
-        assertEq(sale.usdcTokenBalance(), 3_000_000e6);
-        assertEq(sale.radTokenBalance(), 4_000_000e18);
+        assertEq(sale.radTokenBalance(), radAmount);
+        assertEq(sale.usdcTokenBalance(), usdAmount);
 
         IConfigurableRightsPool crpPool = IConfigurableRightsPool(sale.crpPool());
         assertEq(crpPool.getController(), address(sale));
@@ -223,6 +223,10 @@ contract RadicleLbpTest is DSTest {
         hevm.roll(block.number + gov.votingPeriod());
         assertEq(uint(gov.state(proposal)), 4);
 
+        // Keep track of timelock balances before proposal is executed.
+        uint256 timelockRad = rad.balanceOf(address(timelock));
+        uint256 timelockUsdc = usdc.balanceOf(address(timelock));
+
         // The proposal has now passed, we can queue it and execute it.
         gov.queue(proposal);
         assertEq(uint(gov.state(proposal)), 5);
@@ -234,6 +238,8 @@ contract RadicleLbpTest is DSTest {
         BPool bPool = BPool(crpPool.bPool());
         assert(address(bPool) != address(0)); // Pool was created
         assertEq(crpPool.balanceOf(address(timelock)), crpPool.totalSupply(), "Timelock has 100% ownership of the pool");
+        assertEq(rad.balanceOf(address(timelock)), timelockRad - radAmount, "Timelock has less RAD");
+        assertEq(usdc.balanceOf(address(timelock)), timelockUsdc - usdAmount, "Timelock has less USDC");
         assertEq(bPool.getController(), address(crpPool), "Pool is controlled by CRP");
         assertEq(bPool.getBalance(address(rad)), radAmount);
         assertEq(bPool.getBalance(address(usdc)), usdAmount);
