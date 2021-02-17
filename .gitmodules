@@ -22,3 +22,6 @@
 [submodule "lib/configurable-rights-pool"]
 	path = lib/configurable-rights-pool
 	url = https://github.com/balancer-labs/configurable-rights-pool
+[submodule "lib/balancer-core"]
+	path = lib/balancer-core
+	url = https://github.com/balancer-labs/balancer-core
