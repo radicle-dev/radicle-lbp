@@ -24,6 +24,7 @@ interface Hevm {
 
 interface BPool {
     function getBalance(address) external returns (uint256);
+    function getController() external returns (address);
 }
 
 contract USDUser {
@@ -228,5 +229,13 @@ contract RadicleLbpTest is DSTest {
         hevm.warp(block.timestamp + 2 days); // Timelock delay
         gov.execute(proposal);
         assertEq(uint(gov.state(proposal)), 7);
+
+        // Proposal is now executed. The sale has started.
+        BPool bPool = BPool(crpPool.bPool());
+        assert(address(bPool) != address(0)); // Pool was created
+        assertEq(crpPool.balanceOf(address(timelock)), crpPool.totalSupply(), "Timelock has 100% ownership of the pool");
+        assertEq(bPool.getController(), address(crpPool), "Pool is controlled by CRP");
+        assertEq(bPool.getBalance(address(rad)), radAmount);
+        assertEq(bPool.getBalance(address(usdc)), usdAmount);
     }
 }
