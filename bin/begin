@@ -43,9 +43,8 @@ read -p ">>> Proceed? <<< " -r
 
 seth send --gas $GAS "$RAD"  "approve(address,uint256)" "$SALE" $RAD_BALANCE  -P $GAS_PRICE
 seth send --gas $GAS "$USDC" "approve(address,uint256)" "$SALE" $USDC_BALANCE -P $GAS_PRICE
-seth send --gas $GAS "$SALE" "begin(uint256,uint256,uint256,address)" \
+seth send --gas $GAS "$SALE" "begin(uint256,uint256,address)" \
   $MIN_WEIGHT_CHANGE_PERIOD \
-  $ADD_TOKEN_TIMELOCK_PERIOD \
   $WEIGHT_CHANGE_START_DELAY \
   $CONTROLLER \
   -P $GAS_PRICE

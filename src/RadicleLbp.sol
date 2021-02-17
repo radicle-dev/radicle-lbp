@@ -42,8 +42,6 @@ library BalancerConstants {
 interface IConfigurableRightsPool is IERC20 {
     function whitelistLiquidityProvider(address provider) external;
 
-    function joinPool(uint256 poolAmountOut, uint256[] calldata maxAmountsIn) external;
-
     function setController(address newOwner) external;
 
     function createPool(
@@ -83,6 +81,7 @@ contract RadicleLbp {
     uint256 public constant USDC_BALANCE = 3000000; // 3 million USDC
     uint256 public constant RAD_WEIGHT = 38;
     uint256 public constant USDC_WEIGHT = 2;
+    uint256 public constant SWAP_FEE = 3e15; // 0.3%
 
     constructor(
         address bFactory,
@@ -126,7 +125,7 @@ contract RadicleLbp {
         params.constituentTokens[1] = address(_usdcToken);
         params.tokenBalances[1] = usdcTokenBalance;
         params.tokenWeights[1] = usdcTokenWeight;
-        params.swapFee = BalancerConstants.MIN_FEE;
+        params.swapFee = SWAP_FEE;
 
         IConfigurableRightsPool _crpPool = factory.newCrp(bFactory, params, rights);
         _crpPool.whitelistLiquidityProvider(lp); // Allow one LP to provide liquidity.
@@ -172,10 +171,13 @@ contract Sale {
     /// Balancer pool, and transfers the pool tokens to the sender.
     function begin(
         uint256 minimumWeightChangeBlockPeriod,
-        uint256 addTokenTimeLockInBlocks,
         uint256 weightChangeStartDelay,
         address controller
     ) public {
+        require(
+            controller == address(0),
+            "Sale::begin: the controller must be set"
+        );
         require(
             radToken.transferFrom(msg.sender, address(this), radTokenBalance),
             "Sale::begin: transfer of RAD must succeed"
@@ -191,7 +193,11 @@ contract Sale {
         // How many pool tokens to mint.
         uint256 poolTokens = 100 * BalancerConstants.BONE;
 
-        crpPool.createPool(poolTokens, minimumWeightChangeBlockPeriod, addTokenTimeLockInBlocks);
+        crpPool.createPool(
+          poolTokens,
+          minimumWeightChangeBlockPeriod,
+          0
+        );
 
         require(
             crpPool.totalSupply() == poolTokens,
