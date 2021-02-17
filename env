@@ -1,6 +1,4 @@
 export DAPP_REMAPPINGS=$(cat remappings.txt)
-export DAPP_SOLC=$(which solc)
-export DAPP_LINK_TEST_LIBRARIES=0;
 export ETH_KEYSTORE="$HOME/keystore"
 export ETH_RPC_URL="https://rinkeby.infura.io/v3/de5e2a8780c04964950e73b696d1bfb1"
 export ETH_FROM="$(seth ls 2>/dev/null | awk '{ print $1 }')"

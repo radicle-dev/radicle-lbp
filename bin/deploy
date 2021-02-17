@@ -17,7 +17,7 @@ BINARY="out/RadicleLbp.bin"
 
 dapp build --optimize --extract
 
-GAS=5652178
+GAS=6000000
 CONTRACT="$(seth send --gas $GAS --create "$BINARY" "constructor(address,address,address,address,address)" "$BFACTORY" "$CRPFACTORY" "$RAD" "$USDC" "$LP" --status)"
 SALE="$(seth call "$CONTRACT" "sale()(address)")"
 CRP="$(seth call "$CONTRACT" "crpPool()(address)")"
