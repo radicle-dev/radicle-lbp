@@ -7,3 +7,6 @@
 [submodule "lib/radicle-contracts"]
 	path = lib/radicle-contracts
 	url = https://github.com/radicle-dev/radicle-contracts
+[submodule "lib/ens"]
+	path = lib/ens
+	url = https://github.com/ensdomains/ens
