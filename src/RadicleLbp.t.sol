@@ -26,14 +26,10 @@ interface BPool {
     function getBalance(address) external returns (uint256);
 }
 
-contract USDC is DSToken("USDC") {
-    constructor() {}
-}
-
 contract USDUser {
-    USDC usd;
+    IERC20 usd;
 
-    constructor(USDC usd_) {
+    constructor(IERC20 usd_) {
         usd = usd_;
     }
 
@@ -44,10 +40,10 @@ contract USDUser {
 
 contract Proposer {
     RadicleToken rad;
-    USDC         usd;
+    IERC20         usd;
     Governor     gov;
 
-    constructor(RadicleToken rad_, USDC usd_, Governor gov_) {
+    constructor(RadicleToken rad_, IERC20 usd_, Governor gov_) {
         require(address(gov_) != address(0), "Governance must not be zero");
 
         rad = rad_;
@@ -123,7 +119,7 @@ contract RadUser {
 contract RadicleLbpTest is DSTest {
     Governor gov;
     RadicleToken rad;
-    USDC usdc = new USDC();
+    IERC20 usdc;
     Timelock timelock;
     RadicleLbp lbp;
     Hevm hevm = Hevm(HEVM_ADDRESS);
@@ -147,11 +143,19 @@ contract RadicleLbpTest is DSTest {
             "namehash",
             "label"
         );
-        rad      = phase0.token();
-        timelock = phase0.timelock();
-        gov      = phase0.governor();
-        proposer = new Proposer(rad, usdc, gov);
-        foundation = new USDUser(usdc);
+        rad        = phase0.token();
+        usdc       = IERC20(USDC_ADDR);
+        timelock   = phase0.timelock();
+        gov        = phase0.governor();
+        proposer   = new Proposer(rad, usdc, gov);
+        foundation = new USDUser(IERC20(USDC_ADDR));
+
+        // Set USDC balance of contract to $3M.
+        hevm.store(
+            USDC_ADDR,
+            keccak256(abi.encode(address(this), uint256(9))),
+            bytes32(uint(3_000_000e6))
+        );
 
         require(address(timelock) != address(0));
         require(address(gov) != address(0));
@@ -159,7 +163,6 @@ contract RadicleLbpTest is DSTest {
         assertEq(IERC20Decimal(RAD_ADDR).decimals(), uint(18));
         assertEq(IERC20Decimal(USDC_ADDR).decimals(), uint(6));
 
-        usdc.mint(100_000_000e6);
         usdc.transfer(address(foundation), 3_000_000e6);
 
         // Transfer enough to make proposals (1%).
