@@ -172,13 +172,6 @@ contract RadicleLbpTest is DSTest {
     }
 
     function test_lbp_proposal() public {
-        // 0. Radicle is deployed and liquidity is transfered to treasury
-        // 1. Deployer deploys RadicleLbp contract
-        // 2. Proposer proposes to create a sale, using the Sale contract
-        // 3. Voting begins on proposal
-        // 4. After voting period ends, Proposer executes proposal
-        // 5. LBP is now created, and buying and selling starts
-
         User deployer = new User(gov, IERC20(address(rad)));
         RadicleLbp lbp = deployer.deployLbp(
             BPOOL_FACTORY,
