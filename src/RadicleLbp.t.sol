@@ -167,6 +167,7 @@ contract RadicleLbpTest is DSTest {
 
         // Transfer enough to make proposals (1%).
         rad.transfer(address(proposer), 1_000_000e18);
+        rad.delegate(address(this)); // Delegate our votes to ourselves.
         proposer.delegate(address(proposer));
         hevm.roll(block.number + 1);
     }
@@ -206,11 +207,26 @@ contract RadicleLbpTest is DSTest {
         assertEq(crpPool.getController(), address(sale));
 
         require(address(proposer) != address(0), "Proposer address can't be zero");
-        proposer.propose(
+        uint proposal = proposer.propose(
             address(sale),
             radAmount,
             usdAmount,
             address(this)
         );
+        hevm.roll(block.number + gov.votingDelay() + 1);
+        assertEq(uint(gov.state(proposal)), 1);
+
+        // Vote for the proposal.
+        gov.castVote(proposal, true);
+        // Let some time pass, and check that the proposal succeeded.
+        hevm.roll(block.number + gov.votingPeriod());
+        assertEq(uint(gov.state(proposal)), 4);
+
+        // The proposal has now passed, we can queue it and execute it.
+        gov.queue(proposal);
+        assertEq(uint(gov.state(proposal)), 5);
+        hevm.warp(block.timestamp + 2 days); // Timelock delay
+        gov.execute(proposal);
+        assertEq(uint(gov.state(proposal)), 7);
     }
 }
