@@ -10,3 +10,6 @@
 [submodule "lib/ens"]
 	path = lib/ens
 	url = https://github.com/ensdomains/ens
+[submodule "lib/ds-token"]
+	path = lib/ds-token
+	url = https://github.com/dapphub/ds-token
