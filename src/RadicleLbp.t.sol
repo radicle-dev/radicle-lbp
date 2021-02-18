@@ -260,7 +260,7 @@ contract RadicleLbpTest is DSTest {
             500_000e6,
             address(rad),
             1,
-            21e6
+            14e6
         );
         assertEq(usdc.balanceOf(address(buyer)), 0, "Buyer spent all their USDC");
         assertEq(rad.balanceOf(address(buyer)), radAmountOut, "Buyer received RAD");
