@@ -15,6 +15,8 @@ fi
 
 CRP=$(seth call $SALE 'crpPool()(address)')
 POOL=$(seth call $CRP 'bPool()(address)')
+RAD=$(seth call $SALE 'radToken()(address)')
+USDC=$(seth call $SALE 'usdcToken()(address)')
 
 echo "Sale at $SALE"
 echo "RAD at $RAD"
