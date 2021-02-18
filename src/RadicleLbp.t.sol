@@ -24,6 +24,9 @@ interface Hevm {
 interface BPool {
     function getBalance(address) external returns (uint256);
     function getController() external returns (address);
+    function swapExactAmountIn(address, uint256, address, uint256, uint256) external returns (uint, uint);
+    function getDenormalizedWeight(address) external returns (uint256);
+    function isPublicSwap() external returns (bool);
 }
 
 contract User {
@@ -45,6 +48,13 @@ contract User {
 
     function castVote(uint proposalId, bool support) public {
         gov.castVote(proposalId, support);
+    }
+
+    function swapExactAmountIn(BPool pool, address usdc, uint256 usdcAmount, address rad, uint256 minRadAmount, uint256 maxRadPrice) public returns (uint, uint) {
+        IERC20(usdc).approve(address(pool), usdcAmount);
+        return pool.swapExactAmountIn(
+            usdc, usdcAmount, rad, minRadAmount, maxRadPrice
+        );
     }
 
     function deployLbp(address bPool, address crpPool, address rad, address usd, address lp) public returns (RadicleLbp) {
@@ -238,5 +248,34 @@ contract RadicleLbpTest is DSTest {
         assertEq(bPool.getBalance(address(rad)), radAmount);
         assertEq(bPool.getBalance(address(usdc)), usdAmount);
         assertEq(crpPool.getController(), address(this), "The CRP controller was transferred");
+
+        // Try buying some RAD.
+        User buyer = new User(gov, IERC20(address(usdc)));
+
+        usdc.transfer(address(buyer), 500_000e6);
+        // TODO: Check starting price.
+        (uint radAmountOut,) = buyer.swapExactAmountIn(
+            bPool,
+            address(usdc),
+            500_000e6,
+            address(rad),
+            1,
+            21e6
+        );
+        assertEq(usdc.balanceOf(address(buyer)), 0, "Buyer spent all their USDC");
+        assertEq(rad.balanceOf(address(buyer)), radAmountOut, "Buyer received RAD");
+
+        // Fast forward to sale end.
+        hevm.roll(block.number + WEIGHT_CHANGE_DURATION + WEIGHT_CHANGE_DELAY);
+
+        crpPool.pokeWeights();
+        uint256 radWeight = bPool.getDenormalizedWeight(address(rad));
+        uint256 usdcWeight = bPool.getDenormalizedWeight(address(usdc));
+        assertEq(radWeight, sale.RAD_END_WEIGHT() * BalancerConstants.BONE, "RAD weights are final");
+        assertEq(usdcWeight, sale.USDC_END_WEIGHT() * BalancerConstants.BONE, "USDC weights are final");
+
+        // Pause swapping.
+        crpPool.setPublicSwap(false);
+        assert(!bPool.isPublicSwap());
     }
 }

@@ -58,6 +58,8 @@ interface IConfigurableRightsPool is IERC20 {
     ) external;
 
     function bPool() external view returns (address);
+    function pokeWeights() external;
+    function setPublicSwap(bool) external;
 }
 
 interface ICRPFactory {
@@ -72,6 +74,7 @@ interface IERC20Decimal is IERC20 {
     function decimals() external view returns (uint8);
 }
 
+// TODO: Check fee.
 contract RadicleLbp {
     IERC20Decimal public immutable radToken;
     IERC20Decimal public immutable usdcToken;
