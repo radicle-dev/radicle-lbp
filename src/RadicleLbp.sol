@@ -5,10 +5,8 @@ pragma experimental ABIEncoderV2;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 struct PoolParams {
-    // Balancer Pool Token (representing shares of the pool)
     string poolTokenSymbol;
     string poolTokenName;
-    // Tokens inside the Pool
     address[] constituentTokens;
     uint256[] tokenBalances;
     uint256[] tokenWeights;
@@ -25,18 +23,7 @@ struct Rights {
 }
 
 library BalancerConstants {
-    // B "ONE" - all math is in the "realm" of 10 ** 18;
-    // where numeric 1 = 10 ** 18
     uint256 public constant BONE = 10**18;
-    uint256 public constant MIN_WEIGHT = BONE;
-    uint256 public constant MAX_WEIGHT = BONE * 50;
-    uint256 public constant MAX_TOTAL_WEIGHT = BONE * 50;
-    uint256 public constant MIN_BALANCE = BONE / 10**6;
-    uint256 public constant MAX_BALANCE = BONE * 10**12;
-    uint256 public constant MIN_POOL_SUPPLY = BONE * 100;
-    uint256 public constant MAX_POOL_SUPPLY = BONE * 10**9;
-    uint256 public constant MIN_FEE = BONE / 10**6;
-    uint256 public constant MAX_FEE = BONE / 10;
 }
 
 interface IConfigurableRightsPool is IERC20 {
@@ -74,7 +61,6 @@ interface IERC20Decimal is IERC20 {
     function decimals() external view returns (uint8);
 }
 
-// TODO: Check fee.
 contract RadicleLbp {
     IERC20Decimal public immutable radToken;
     IERC20Decimal public immutable usdcToken;
