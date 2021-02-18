@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu -o pipefail
+
+DAPP_REMAPPINGS=$(cat remappings.txt)
+ETH_KEYSTORE="$HOME/keystore"
+ETH_FROM=
+ETH_RPC_URL="https://mainnet.infura.io/v3/de5e2a8780c04964950e73b696d1bfb1"
+SETH_CHAIN=mainnet
+GAS_PRICE=162gwei
+RAD="0x31c8EAcBFFdD875c74b94b077895Bd78CF1E64A3"
+BPOOL_FACTORY="0x9424B1412450D0f8Fc2255FAf6046b98213B76Bd"
+CRP_FACTORY="0xed52D8E202401645eDAD1c0AA21e872498ce47D0"
+USDC="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+LP="0x8dA8f82d2BbDd896822de723F55D6EdF416130ba"
+
+if ! [[ -v GAS_PRICE && -v ETH_KEYSTORE && -v ETH_RPC_URL && -v SETH_CHAIN && -v ETH_FROM ]]; then
+  echo "fatal: variables not set"
+  exit 1
+fi
+
+if ! [[ -v LP ]]; then
+  echo "fatal: LP must be set"
+  exit 1
+fi
+
+BINARY="out/RadicleLbp.bin"
+dapp build --optimize --extract
+
+echo "Sending from ${ETH_FROM}"
+echo "Seth chain $SETH_CHAIN"
+echo "Eth URL $ETH_RPC_URL"
+echo "LP is ${LP}"
+echo "BFactory at $BPOOL_FACTORY"
+echo "CRPFactory at $CRP_FACTORY"
+echo "RAD at $RAD"
+echo "USDC at $USDC"
+echo "Gas price $GAS_PRICE"
+
+read -p ">>> Proceed? <<< " -r
+
+GAS=5800000
+CONTRACT="$(seth send --create --gas $GAS "$BINARY" "constructor(address,address,address,address,address)" \
+  "$BPOOL_FACTORY" "$CRP_FACTORY" "$RAD" "$USDC" "$LP" --status -P $GAS_PRICE)"
+SALE="$(seth call "$CONTRACT" "sale()(address)")"
+CRP="$(seth call "$SALE" "crpPool()(address)")"
+
+echo "Contract deployed at $CONTRACT"
+echo "Sale deployed at $SALE"
+echo "CRP deployed at $CRP"
