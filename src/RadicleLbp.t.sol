@@ -87,7 +87,7 @@ contract Proposer {
         rad.delegate(addr);
     }
 
-    function propose(
+    function proposeBeginSale(
         address sale,
         uint256 radAmount,
         uint256 usdAmount,
@@ -118,6 +118,32 @@ contract Proposer {
         return gov.propose(targets, values, sigs, calldatas, "");
     }
 
+    function proposeExitSale(
+        IConfigurableRightsPool crpPool,
+        uint poolTokens
+    ) public returns (uint) {
+        address[] memory targets = new address[](2);
+        uint[] memory values = new uint[](2);
+        string[] memory sigs = new string[](2);
+        bytes[] memory calldatas = new bytes[](2);
+
+        uint[] memory minAmountsOut = new uint[](2);
+        minAmountsOut[0] = 1e18;
+        minAmountsOut[1] = 1e6;
+
+        targets[0] = address(crpPool);
+        values[0] = 0;
+        sigs[0] = "approve(address,uint256)";
+        calldatas[0] = abi.encode(address(crpPool), poolTokens);
+
+        targets[1] = address(crpPool);
+        values[1] = 0;
+        sigs[1] = "exitPool(uint,uint[] calldata)";
+        calldatas[1] = abi.encode(poolTokens, minAmountsOut);
+
+        return gov.propose(targets, values, sigs, calldatas, "");
+    }
+
     function queue(uint proposalId) public {
         gov.queue(proposalId);
     }
@@ -128,7 +154,6 @@ contract RadicleLbpTest is DSTest {
     RadicleToken rad;
     IERC20 usdc;
     Timelock timelock;
-    RadicleLbp lbp;
     Hevm hevm = Hevm(HEVM_ADDRESS);
 
     address constant BPOOL_FACTORY = 0x9424B1412450D0f8Fc2255FAf6046b98213B76Bd; // BPool factory (Mainnet)
@@ -205,7 +230,7 @@ contract RadicleLbpTest is DSTest {
         assertEq(crpPool.getController(), address(sale), "The sale is in control of the CRP");
 
         require(address(proposer) != address(0), "Proposer address can't be zero");
-        uint proposal = proposer.propose(
+        uint proposal1 = proposer.proposeBeginSale(
             address(sale),
             radAmount,
             usdAmount,
@@ -213,19 +238,19 @@ contract RadicleLbpTest is DSTest {
             WEIGHT_CHANGE_DELAY,
             address(this)
         );
-        assertEq(uint(gov.state(proposal)), 0, "Proposal pending");
+        assertEq(uint(gov.state(proposal1)), 0, "Proposal pending");
         hevm.roll(block.number + gov.votingDelay() + 1);
-        assertEq(uint(gov.state(proposal)), 1, "Proposal active");
+        assertEq(uint(gov.state(proposal1)), 1, "Proposal active");
 
         // Vote for the proposal.
-        gov.castVote(proposal, true);
+        gov.castVote(proposal1, true);
         // Let some time pass, and check that the proposal succeeded.
         hevm.roll(block.number + gov.votingPeriod());
-        assertEq(uint(gov.state(proposal)), 4, "Proposal suucceeded");
+        assertEq(uint(gov.state(proposal1)), 4, "Proposal suucceeded");
 
         // The proposal has now passed, we can queue it and execute it.
-        gov.queue(proposal);
-        assertEq(uint(gov.state(proposal)), 5, "Proposal queued");
+        gov.queue(proposal1);
+        assertEq(uint(gov.state(proposal1)), 5, "Proposal queued");
 
         // Provide liquidity to treasury during the timelock delay period.
         usdc.transfer(address(timelock), usdAmount);
@@ -235,8 +260,8 @@ contract RadicleLbpTest is DSTest {
         uint256 timelockUsdc = usdc.balanceOf(address(timelock));
 
         hevm.warp(block.timestamp + 2 days); // Timelock delay
-        gov.execute(proposal);
-        assertEq(uint(gov.state(proposal)), 7, "Proposal executed");
+        gov.execute(proposal1);
+        assertEq(uint(gov.state(proposal1)), 7, "Proposal executed");
 
         // Proposal is now executed. The sale has started.
         BPool bPool = BPool(crpPool.bPool());
@@ -254,6 +279,7 @@ contract RadicleLbpTest is DSTest {
 
         usdc.transfer(address(buyer), 500_000e6);
         // TODO: Check starting price.
+        // 37 * 3.75 / 3 * 3.5
         (uint radAmountOut,) = buyer.swapExactAmountIn(
             bPool,
             address(usdc),
@@ -277,5 +303,17 @@ contract RadicleLbpTest is DSTest {
         // Pause swapping.
         crpPool.setPublicSwap(false);
         assert(!bPool.isPublicSwap());
+
+        // Sale is now over. Propose to withdraw funds.
+        uint256 poolTokens = crpPool.balanceOf(address(timelock));
+        uint proposal2 = proposer.proposeExitSale(crpPool, poolTokens / 2);
+
+        // Execute proposal.
+        hevm.roll(block.number + gov.votingDelay() + 1);
+        gov.castVote(proposal2, true);
+        hevm.roll(block.number + gov.votingPeriod());
+        gov.queue(proposal2);
+        hevm.warp(block.timestamp + 2 days); // Timelock delay
+        gov.execute(proposal2);
     }
 }
