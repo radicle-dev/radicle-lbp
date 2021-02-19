@@ -230,7 +230,7 @@ contract RadicleLbpTest is DSTest {
         assertEq(crpPool.getController(), address(sale), "The sale is in control of the CRP");
 
         require(address(proposer) != address(0), "Proposer address can't be zero");
-        uint proposal1 = proposer.proposeBeginSale(
+        uint saleProposal = proposer.proposeBeginSale(
             address(sale),
             radAmount,
             usdAmount,
@@ -238,19 +238,19 @@ contract RadicleLbpTest is DSTest {
             WEIGHT_CHANGE_DELAY,
             address(controller)
         );
-        assertEq(uint(gov.state(proposal1)), 0, "Proposal pending");
+        assertEq(uint(gov.state(saleProposal)), 0, "Proposal pending");
         hevm.roll(block.number + gov.votingDelay() + 1);
-        assertEq(uint(gov.state(proposal1)), 1, "Proposal active");
+        assertEq(uint(gov.state(saleProposal)), 1, "Proposal active");
 
         // Vote for the proposal.
-        gov.castVote(proposal1, true);
+        gov.castVote(saleProposal, true);
         // Let some time pass, and check that the proposal succeeded.
         hevm.roll(block.number + gov.votingPeriod());
-        assertEq(uint(gov.state(proposal1)), 4, "Proposal suucceeded");
+        assertEq(uint(gov.state(saleProposal)), 4, "Proposal suucceeded");
 
         // The proposal has now passed, we can queue it and execute it.
-        gov.queue(proposal1);
-        assertEq(uint(gov.state(proposal1)), 5, "Proposal queued");
+        gov.queue(saleProposal);
+        assertEq(uint(gov.state(saleProposal)), 5, "Proposal queued");
 
         // Provide liquidity to treasury during the timelock delay period.
         usdc.transfer(address(timelock), usdAmount);
@@ -260,8 +260,8 @@ contract RadicleLbpTest is DSTest {
         uint256 timelockUsdc = usdc.balanceOf(address(timelock));
 
         hevm.warp(block.timestamp + 2 days); // Timelock delay
-        gov.execute(proposal1);
-        assertEq(uint(gov.state(proposal1)), 7, "Proposal executed");
+        gov.execute(saleProposal);
+        assertEq(uint(gov.state(saleProposal)), 7, "Proposal executed");
 
         // Proposal is now executed. The sale has started.
         BPool bPool = BPool(crpPool.bPool());
@@ -308,14 +308,14 @@ contract RadicleLbpTest is DSTest {
         uint256 poolTokens = crpPool.balanceOf(address(timelock));
         assertEq(poolTokens, crpPool.totalSupply(), "Timelock has 100% ownership of the pool");
 
-        uint proposal2 = proposer.proposeExitSale(crpPool, poolTokens / 2);
+        uint exitProposal = proposer.proposeExitSale(crpPool, poolTokens / 2);
 
         // Execute proposal.
         hevm.roll(block.number + gov.votingDelay() + 1);
-        gov.castVote(proposal2, true);
+        gov.castVote(exitProposal, true);
         hevm.roll(block.number + gov.votingPeriod());
-        gov.queue(proposal2);
+        gov.queue(exitProposal);
         hevm.warp(block.timestamp + 2 days); // Timelock delay
-        gov.execute(proposal2);
+        gov.execute(exitProposal);
     }
 }
