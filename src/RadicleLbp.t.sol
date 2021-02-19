@@ -154,6 +154,8 @@ contract RadicleLbpTest is DSTest {
     IERC20 usdc;
     Timelock timelock;
     Hevm hevm = Hevm(HEVM_ADDRESS);
+    User controller;
+    User deployer;
 
     address constant BPOOL_FACTORY = 0x9424B1412450D0f8Fc2255FAf6046b98213B76Bd; // BPool factory (Mainnet)
     address constant CRP_FACTORY   = 0xed52D8E202401645eDAD1c0AA21e872498ce47D0; // CRP factory (Mainnet)
@@ -184,6 +186,8 @@ contract RadicleLbpTest is DSTest {
         gov        = phase0.governor();
         proposer   = new Proposer(rad, usdc, gov);
         foundation = new User(gov, IERC20(USDC_ADDR));
+        controller = new User(gov, IERC20(address(rad)));
+        deployer   = new User(gov, IERC20(address(rad)));
 
         // Set USDC balance of contract to $10M.
         hevm.store(
@@ -206,8 +210,6 @@ contract RadicleLbpTest is DSTest {
     }
 
     function test_lbp_proposal() public {
-        User controller = new User(gov, IERC20(address(rad)));
-        User deployer = new User(gov, IERC20(address(rad)));
         RadicleLbp lbp = deployer.deployLbp(
             BPOOL_FACTORY,
             CRP_FACTORY,
@@ -217,6 +219,8 @@ contract RadicleLbpTest is DSTest {
         );
         uint256 radAmount = lbp.RAD_BALANCE();
         uint256 usdAmount = lbp.USDC_BALANCE();
+        uint256 timelockInitialRad = rad.balanceOf(address(timelock));
+        uint256 timelockInitialUsdc = usdc.balanceOf(address(timelock));
 
         assertEq(rad.balanceOf(address(proposer)), uint(1_000_000e18));
         assertEq(rad.getCurrentVotes(address(proposer)), uint(1_000_000e18), "Proposer has enough voting power");
@@ -254,6 +258,7 @@ contract RadicleLbpTest is DSTest {
 
         // Provide liquidity to treasury during the timelock delay period.
         usdc.transfer(address(timelock), usdAmount);
+        rad.transfer(address(timelock), radAmount);
 
         // Keep track of timelock balances before proposal is executed.
         uint256 timelockRad = rad.balanceOf(address(timelock));
@@ -263,59 +268,73 @@ contract RadicleLbpTest is DSTest {
         gov.execute(saleProposal);
         assertEq(uint(gov.state(saleProposal)), 7, "Proposal executed");
 
-        // Proposal is now executed. The sale has started.
-        BPool bPool = BPool(crpPool.bPool());
-        assert(address(bPool) != address(0)); // Pool was created
-        assertEq(crpPool.balanceOf(address(timelock)), crpPool.totalSupply(), "Timelock has 100% ownership of the pool");
-        assertEq(rad.balanceOf(address(timelock)), timelockRad - radAmount, "Timelock has less RAD");
-        assertEq(usdc.balanceOf(address(timelock)), timelockUsdc - usdAmount, "Timelock has less USDC");
-        assertEq(bPool.getController(), address(crpPool), "Pool is controlled by CRP");
-        assertEq(bPool.getBalance(address(rad)), radAmount);
-        assertEq(bPool.getBalance(address(usdc)), usdAmount);
-        assertEq(crpPool.getController(), address(controller), "The CRP controller was transferred");
+        {
+            // Proposal is now executed. The sale has started.
+            BPool bPool = BPool(crpPool.bPool());
+            assert(address(bPool) != address(0)); // Pool was created
+            assertEq(crpPool.balanceOf(address(timelock)), crpPool.totalSupply(), "Timelock has 100% ownership of the pool");
+            assertEq(rad.balanceOf(address(timelock)), timelockRad - radAmount, "Timelock has less RAD");
+            assertEq(usdc.balanceOf(address(timelock)), timelockUsdc - usdAmount, "Timelock has less USDC");
+            assertEq(bPool.getController(), address(crpPool), "Pool is controlled by CRP");
+            assertEq(bPool.getBalance(address(rad)), radAmount);
+            assertEq(bPool.getBalance(address(usdc)), usdAmount);
+            assertEq(crpPool.getController(), address(controller), "The CRP controller was transferred");
 
-        // Try buying some RAD.
-        User buyer = new User(gov, IERC20(address(usdc)));
+            // Try buying some RAD.
+            User buyer = new User(gov, IERC20(address(usdc)));
+            usdc.transfer(address(buyer), 500_000e6);
+            (uint radAmountOut,) = buyer.swapExactAmountIn(
+                bPool,
+                address(usdc),
+                500_000e6,
+                address(rad),
+                1,
+                21e6
+            );
+            assertEq(usdc.balanceOf(address(buyer)), 0, "Buyer spent all their USDC");
+            assertEq(rad.balanceOf(address(buyer)), radAmountOut, "Buyer received RAD");
 
-        usdc.transfer(address(buyer), 500_000e6);
-        // TODO: Check starting price.
-        // 37 * 3.75 / 3 * 3.5
-        (uint radAmountOut,) = buyer.swapExactAmountIn(
-            bPool,
-            address(usdc),
-            500_000e6,
-            address(rad),
-            1,
-            14e6
-        );
-        assertEq(usdc.balanceOf(address(buyer)), 0, "Buyer spent all their USDC");
-        assertEq(rad.balanceOf(address(buyer)), radAmountOut, "Buyer received RAD");
+            // Fast forward to sale end.
+            hevm.roll(block.number + WEIGHT_CHANGE_DURATION + WEIGHT_CHANGE_DELAY);
 
-        // Fast forward to sale end.
-        hevm.roll(block.number + WEIGHT_CHANGE_DURATION + WEIGHT_CHANGE_DELAY);
+            crpPool.pokeWeights();
+            uint256 radWeight = bPool.getDenormalizedWeight(address(rad));
+            uint256 usdcWeight = bPool.getDenormalizedWeight(address(usdc));
+            assertEq(radWeight, sale.RAD_END_WEIGHT() * BalancerConstants.BONE, "RAD weights are final");
+            assertEq(usdcWeight, sale.USDC_END_WEIGHT() * BalancerConstants.BONE, "USDC weights are final");
 
-        crpPool.pokeWeights();
-        uint256 radWeight = bPool.getDenormalizedWeight(address(rad));
-        uint256 usdcWeight = bPool.getDenormalizedWeight(address(usdc));
-        assertEq(radWeight, sale.RAD_END_WEIGHT() * BalancerConstants.BONE, "RAD weights are final");
-        assertEq(usdcWeight, sale.USDC_END_WEIGHT() * BalancerConstants.BONE, "USDC weights are final");
-
-        // Pause swapping.
-        controller.pauseSwapping(crpPool);
-        assert(!bPool.isPublicSwap());
+            // Pause swapping.
+            controller.pauseSwapping(crpPool);
+            assert(!bPool.isPublicSwap());
+        }
 
         // Sale is now over. Propose to withdraw funds.
         uint256 poolTokens = crpPool.balanceOf(address(timelock));
         assertEq(poolTokens, crpPool.totalSupply(), "Timelock has 100% ownership of the pool");
 
-        uint exitProposal = proposer.proposeExitSale(crpPool, poolTokens / 2);
+        uint exitProposal = proposer.proposeExitSale(crpPool, poolTokens - 1e14);
+        {
+            uint timelockRad = rad.balanceOf(address(timelock));
+            uint timelockUsdc = usdc.balanceOf(address(timelock));
 
-        // Execute proposal.
-        hevm.roll(block.number + gov.votingDelay() + 1);
-        gov.castVote(exitProposal, true);
-        hevm.roll(block.number + gov.votingPeriod());
-        gov.queue(exitProposal);
-        hevm.warp(block.timestamp + 2 days); // Timelock delay
-        gov.execute(exitProposal);
+            assertEq(timelockRad, timelockInitialRad, "Timelock has its initial amount of RAD");
+            assertEq(timelockUsdc, timelockInitialUsdc, "Timelock has its initial amount of USDC");
+
+            // Execute proposal.
+            hevm.roll(block.number + gov.votingDelay() + 1);
+            gov.castVote(exitProposal, true);
+            hevm.roll(block.number + gov.votingPeriod());
+            gov.queue(exitProposal);
+            hevm.warp(block.timestamp + 2 days); // Timelock delay
+            gov.execute(exitProposal);
+
+            assertEq(crpPool.balanceOf(address(timelock)), 1e14, "Timelock has traded in most of its pool tokens");
+            {
+                uint256 finalBalance = usdc.balanceOf(address(timelock));
+                uint256 expectedBalance = usdAmount + 500_000e6; // Original amount plus sale.
+                // Check that the recovered amount is within 10 USDC of the expected amount.
+                assertTrue(expectedBalance - finalBalance <= 10e6, "Timelock recovered the USDC");
+            }
+        }
     }
 }
