@@ -133,7 +133,7 @@ contract Proposer {
 
         targets[0] = address(crpPool);
         values[0] = 0;
-        sigs[0] = "exitPool(uint,uint[])";
+        sigs[0] = "exitPool(uint256,uint256[])";
         calldatas[0] = abi.encode(poolTokens, minAmountsOut);
 
         return gov.propose(targets, values, sigs, calldatas, "");
