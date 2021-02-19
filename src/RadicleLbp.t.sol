@@ -57,6 +57,10 @@ contract User {
         );
     }
 
+    function pauseSwapping(IConfigurableRightsPool crpPool) public {
+        crpPool.setPublicSwap(false);
+    }
+
     function deployLbp(address bPool, address crpPool, address rad, address usd, address lp) public returns (RadicleLbp) {
         require(rad == address(token));
         RadicleLbp lbp = new RadicleLbp(
@@ -297,8 +301,8 @@ contract RadicleLbpTest is DSTest {
         assertEq(usdcWeight, sale.USDC_END_WEIGHT() * BalancerConstants.BONE, "USDC weights are final");
 
         // Pause swapping.
-        // crpPool.setPublicSwap(false);
-        // assert(!bPool.isPublicSwap());
+        controller.pauseSwapping(crpPool);
+        assert(!bPool.isPublicSwap());
 
         // Sale is now over. Propose to withdraw funds.
         uint256 poolTokens = crpPool.balanceOf(address(timelock));
