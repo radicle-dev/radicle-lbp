@@ -122,10 +122,10 @@ contract Proposer {
         IConfigurableRightsPool crpPool,
         uint poolTokens
     ) public returns (uint) {
-        address[] memory targets = new address[](2);
-        uint[] memory values = new uint[](2);
-        string[] memory sigs = new string[](2);
-        bytes[] memory calldatas = new bytes[](2);
+        address[] memory targets = new address[](1);
+        uint[] memory values = new uint[](1);
+        string[] memory sigs = new string[](1);
+        bytes[] memory calldatas = new bytes[](1);
 
         uint[] memory minAmountsOut = new uint[](2);
         minAmountsOut[0] = 1e18;
@@ -133,13 +133,8 @@ contract Proposer {
 
         targets[0] = address(crpPool);
         values[0] = 0;
-        sigs[0] = "approve(address,uint256)";
-        calldatas[0] = abi.encode(address(crpPool), poolTokens);
-
-        targets[1] = address(crpPool);
-        values[1] = 0;
-        sigs[1] = "exitPool(uint,uint[] calldata)";
-        calldatas[1] = abi.encode(poolTokens, minAmountsOut);
+        sigs[0] = "exitPool(uint,uint[])";
+        calldatas[0] = abi.encode(poolTokens, minAmountsOut);
 
         return gov.propose(targets, values, sigs, calldatas, "");
     }
@@ -207,6 +202,7 @@ contract RadicleLbpTest is DSTest {
     }
 
     function test_lbp_proposal() public {
+        User controller = new User(gov, IERC20(address(rad)));
         User deployer = new User(gov, IERC20(address(rad)));
         RadicleLbp lbp = deployer.deployLbp(
             BPOOL_FACTORY,
@@ -236,7 +232,7 @@ contract RadicleLbpTest is DSTest {
             usdAmount,
             WEIGHT_CHANGE_DURATION,
             WEIGHT_CHANGE_DELAY,
-            address(this)
+            address(controller)
         );
         assertEq(uint(gov.state(proposal1)), 0, "Proposal pending");
         hevm.roll(block.number + gov.votingDelay() + 1);
@@ -272,7 +268,7 @@ contract RadicleLbpTest is DSTest {
         assertEq(bPool.getController(), address(crpPool), "Pool is controlled by CRP");
         assertEq(bPool.getBalance(address(rad)), radAmount);
         assertEq(bPool.getBalance(address(usdc)), usdAmount);
-        assertEq(crpPool.getController(), address(this), "The CRP controller was transferred");
+        assertEq(crpPool.getController(), address(controller), "The CRP controller was transferred");
 
         // Try buying some RAD.
         User buyer = new User(gov, IERC20(address(usdc)));
@@ -301,11 +297,13 @@ contract RadicleLbpTest is DSTest {
         assertEq(usdcWeight, sale.USDC_END_WEIGHT() * BalancerConstants.BONE, "USDC weights are final");
 
         // Pause swapping.
-        crpPool.setPublicSwap(false);
-        assert(!bPool.isPublicSwap());
+        // crpPool.setPublicSwap(false);
+        // assert(!bPool.isPublicSwap());
 
         // Sale is now over. Propose to withdraw funds.
         uint256 poolTokens = crpPool.balanceOf(address(timelock));
+        assertEq(poolTokens, crpPool.totalSupply(), "Timelock has 100% ownership of the pool");
+
         uint proposal2 = proposer.proposeExitSale(crpPool, poolTokens / 2);
 
         // Execute proposal.
