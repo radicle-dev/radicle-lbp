@@ -7,22 +7,32 @@ This is a proposal to make 3.75% of the Radicle token supply available for
 interested parties within the Radicle community. It uses [Balancer](https://balancer.finance/),
 a decentralized exchange and leverages a mechanism called [Liquidity Bootstrapping](https://medium.com/balancer-protocol/building-liquidity-into-token-distribution-a49d4286e0d4).
 
-The purpose of this distribution event is to:
+The purpose of this proposal is to:
 
-a) Distribute the Radicle token among the wider Radicle community beyond early
+* Distribute the Radicle token among the wider Radicle community, beyond early
 contributors and team members.
-
-b) Build deep liquidity for the Radicle network, setting it up for long-term
+* Build deep liquidity for the Radicle network, setting it up for long-term
 success.
-
-c) Enter price discovery for the Radicle token.
+* Begin price discovery for the Radicle token.
 
 Proceeds from the event will be held by the Radicle Treasury, a smart contract
-fully controlled by the Radicle token holders. They will be available for
-distribution via the standard governance process.
+fully controlled by the Radicle token holders.
 
-Read more about the Radicle Treasury
-[here](https://radicle.xyz/blog/introducing-rad.html).
+Read more about the Radicle Treasury [here](https://radicle.xyz/blog/introducing-rad.html).
+
+**LBP specifications**
+
+* Pool tokens: `RAD` and `USDC`
+* RAD start balance: 3.75M
+* USDC start balance: 3.5M
+* RAD start weight: 92.5
+* RAD end weight: 50
+* USDC start weight: 7.5
+* USDC end weight: 50
+* Swap fee: 0.5%
+* Duration: 2 days
+* Sale address: `0x864fDEF96374A2060Ae18f83bbEc924f174D6b35`
+* CRP address: `0x750dD34Fb165bE682fAe445793AB9ab9729CDAa3`
 
 **What is a Liquidity Bootstrapping Pool?**
 
@@ -35,8 +45,8 @@ for more information.
 
 **Why a Liquidity Bootstrapping Pool?**
 
-The liquidity bootstrapping pool is a battle-tested mechanism for price
-discovery and building liquidity. It’s been successfully used by numerous teams
+The Liquidity Bootstrapping Pool is a battle-tested mechanism for price
+discovery and liquidity building. It’s been successfully used by numerous teams
 including [Hydra](https://hydradx.substack.com/p/hydradx-faq), [APY
 Finance](https://medium.com/apyfinance/apy-finance-tge-on-balancers-lbp-liquidity-bootstrapping-pool-2690dd245a16),
 and [Perpetual
@@ -45,11 +55,9 @@ protocol](https://medium.com/perpetual-protocol/why-we-chose-to-distribute-perp-
 **How was this proposal discussed?**
 
 This proposal was put together by early contributors behind the
-Radicle project. One of the main goals of this proposal is to distribute
-governing power among a wider group of people to ensure a healthy and
-productive governing community.
+Radicle project.
 
-Moving forward, all proposals will be discussed openly and developed through a
+Moving forward, all proposals will be discussed openly and developed through the
 formal governance process. This process is meant to be owned and developed
 collectively by the Radicle community. More information can be found on
 [https://radicle.community](https://radicle.community/).
