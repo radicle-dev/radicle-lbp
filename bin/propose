@@ -1,0 +1,9 @@
+#!/bin/sh
+
+export RAD=0x31c8EAcBFFdD875c74b94b077895Bd78CF1E64A3
+export RADGOV=0x690e775361AD66D1c4A25d89da9fCd639F5198eD
+export ETH_RPC_URL="https://mainnet.infura.io/v3/de5e2a8780c04964950e73b696d1bfb1"
+export ETH_GAS=800000
+export ETH_FROM=0x641eDB587867a703E132a4210d63e93C52AA97fF
+
+radgov propose sale.proposal -P 230gwei
