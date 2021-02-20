@@ -1,11 +1,11 @@
 # Liquidity Bootstrapping Pool
 
+*Radicle is progressively decentralizing its network by distributing
+decision-making power to a wider group of people.*
+
 This is a proposal to make 3.75% of the Radicle token supply available for
-interested parties within the Radicle community. It outlines a proposed
-Liquidity Bootstrapping event on the decentralized exchange named
-[Balancer](https://balancer.finance/), using a mechanism called [Liquidity
-Bootstrapping
-Pool](https://medium.com/balancer-protocol/building-liquidity-into-token-distribution-a49d4286e0d4).
+interested parties within the Radicle community. It uses [Balancer](https://balancer.finance/),
+a decentralized exchange and leverages a mechanism called [Liquidity Bootstrapping](https://medium.com/balancer-protocol/building-liquidity-into-token-distribution-a49d4286e0d4).
 
 The purpose of this distribution event is to:
 
@@ -15,10 +15,11 @@ contributors and team members.
 b) Build deep liquidity for the Radicle network, setting it up for long-term
 success.
 
-Proceeds from the event will be controlled by the Radicle Treasury, a smart
-contract fully controlled by the Radicle token holders. The proceeds **will
-not** go directly to the core-team. Instead, they will be available for
-distribution via governance of the Radicle Treasury.
+c) Enter price discovery for the Radicle token.
+
+Proceeds from the event will be held by the Radicle Treasury, a smart contract
+fully controlled by the Radicle token holders. They will be available for
+distribution via the standard governance process.
 
 Read more about the Radicle Treasury
 [here](https://radicle.xyz/blog/introducing-rad.html).
@@ -26,7 +27,7 @@ Read more about the Radicle Treasury
 **What is a Liquidity Bootstrapping Pool?**
 
 Balancer’s Liquidity Bootstrapping Pool (LBP) is a Balancer pool that
-automatically adjusts its pool weights over time. This applies downward price
+automatically adjusts its token weights over time. This applies downwards price
 pressure on the token and disincentivizes front-running, speculation and whale
 buying. See Balancer’s [Liquidity Bootstrapping Pool
 FAQ](https://docs.balancer.finance/smart-contracts/smart-pools/liquidity-bootstrapping-faq)
@@ -43,7 +44,7 @@ protocol](https://medium.com/perpetual-protocol/why-we-chose-to-distribute-perp-
 
 **How was this proposal discussed?**
 
-This proposal was put together by a number of early contributors behind the
+This proposal was put together by early contributors behind the
 Radicle project. One of the main goals of this proposal is to distribute
 governing power among a wider group of people to ensure a healthy and
 productive governing community.
