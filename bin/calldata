@@ -1,0 +1,18 @@
+#!/bin/sh
+
+BPOOL_FACTORY=0x9424B1412450D0f8Fc2255FAf6046b98213B76Bd
+CRP_FACTORY=0xed52D8E202401645eDAD1c0AA21e872498ce47D0
+RAD_ADDR=0x31c8EAcBFFdD875c74b94b077895Bd78CF1E64A3
+USDC_ADDR=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+LP=0x8dA8f82d2BbDd896822de723F55D6EdF416130ba
+TIMELOCK=0x8dA8f82d2BbDd896822de723F55D6EdF416130ba
+
+echo "RadicleLbp"
+seth calldata "constructor(address,address,address,address,address)" "$BPOOL_FACTORY" "$CRP_FACTORY" "$RAD_ADDR" "$USDC_ADDR" "$LP"
+
+echo "Sale"
+seth calldata "constructor(address,address,address,uint256,uint256,address)" \
+  0x750dD34Fb165bE682fAe445793AB9ab9729CDAa3 "$RAD_ADDR" "$USDC_ADDR" $(seth --to-wei "3750000 ether") 3500000000000 $TIMELOCK
+
+echo "Sale::begin"
+  seth calldata "begin(uint256,uint256,address)" 12800 266 "0x13075a80df4A80e45e58ef871900F0E0eF2ca5cC"
