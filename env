@@ -1,9 +1,7 @@
 export DAPP_REMAPPINGS=$(cat remappings.txt)
 export ETH_KEYSTORE="$HOME/keystore"
-export ETH_RPC_URL="https://rinkeby.infura.io/v3/de5e2a8780c04964950e73b696d1bfb1"
-export ETH_FROM="$(seth ls 2>/dev/null | awk '{ print $1 }')"
-export SETH_CHAIN=rinkeby
+export ETH_RPC_URL="https://mainnet.infura.io/v3/de5e2a8780c04964950e73b696d1bfb1"
+export SETH_CHAIN=mainnet
 export GAS_PRICE=1gwei
 export DAPP_TEST_NUMBER=11874800
-
-source ./rinkeby.env
+export RADGOV=0x690e775361AD66D1c4A25d89da9fCd639F5198eD
