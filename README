@@ -1,3 +1,10 @@
+TESTING
+
+source env
+dapp test --rpc-url https://mainnet.infura.io/v3/de5e2a8780c04964950e73b696d1bfb1
+
+OVERVIEW
+
 The steps for the sale:
 
 0. Radicle governance system is deployed.
