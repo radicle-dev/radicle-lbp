@@ -24,6 +24,7 @@ interface Hevm {
 interface BPool {
     function getBalance(address) external returns (uint256);
     function getController() external returns (address);
+    function getSpotPriceSansFee(address, address) external returns (uint);
     function swapExactAmountIn(address, uint256, address, uint256, uint256) external returns (uint, uint);
     function getDenormalizedWeight(address) external returns (uint256);
     function isPublicSwap() external returns (bool);
@@ -279,6 +280,9 @@ contract RadicleLbpTest is DSTest {
             assertEq(bPool.getBalance(address(rad)), radAmount);
             assertEq(bPool.getBalance(address(usdc)), usdAmount);
             assertEq(crpPool.getController(), address(controller), "The CRP controller was transferred");
+
+            uint price = bPool.getSpotPriceSansFee(address(usdc), address(rad));
+            assertTrue(price < 12e6 && price > 11e6);
 
             // Try buying some RAD.
             User buyer = new User(gov, IERC20(address(usdc)));
