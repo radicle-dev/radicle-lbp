@@ -171,24 +171,19 @@ contract RadicleLbpTest is DSTest {
     Proposer proposer;
 
     function setUp() public {
-        // Deploy radicle governance.
-        Phase0 phase0 = new Phase0(
-            address(this),
-            address(this),
-            2 days,
-            address(0),
-            ENS(address(this)),
-            "namehash",
-            "label"
-        );
-        rad        = phase0.token();
+        rad        = RadicleToken(RAD_ADDR);
         usdc       = IERC20(USDC_ADDR);
-        timelock   = phase0.timelock();
-        gov        = phase0.governor();
+        timelock   = Timelock(0x8dA8f82d2BbDd896822de723F55D6EdF416130ba);
+        gov        = Governor(0x690e775361AD66D1c4A25d89da9fCd639F5198eD);
         proposer   = new Proposer(rad, usdc, gov);
         foundation = new User(gov, IERC20(USDC_ADDR));
         controller = new User(gov, IERC20(address(rad)));
         deployer   = new User(gov, IERC20(address(rad)));
+
+        assertEq(address(gov.token()), address(rad));
+        assertEq(address(gov.timelock()), address(timelock));
+        assertEq(timelock.admin(), address(gov));
+        assertEq(gov.guardian(), address(0));
 
         // Set USDC balance of contract to $10M.
         hevm.store(
@@ -196,6 +191,21 @@ contract RadicleLbpTest is DSTest {
             keccak256(abi.encode(address(this), uint256(9))),
             bytes32(uint(10_000_000e6))
         );
+        // Set RAD balance of contract to 100M.
+        hevm.store(
+            RAD_ADDR,
+            keccak256(abi.encode(address(this), uint256(2))),
+            bytes32(uint(100_000_000e18))
+        );
+        // Set USDC balance of treasury to 0.
+        hevm.store(
+            USDC_ADDR,
+            keccak256(abi.encode(address(timelock), uint256(9))),
+            bytes32(uint(0))
+        );
+
+        // Transfer half of the supply to the treasury.
+        require(rad.transfer(address(timelock), 50_000_000e18));
 
         require(address(timelock) != address(0));
         require(address(gov) != address(0));
