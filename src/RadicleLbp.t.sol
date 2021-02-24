@@ -30,6 +30,28 @@ interface BPool {
     function isPublicSwap() external returns (bool);
 }
 
+struct Proposal {
+    address proposer;
+    uint256 eta;
+    address[] targets;
+    uint256[] values;
+    string[] signatures;
+    bytes[] calldatas;
+    uint256 startBlock;
+    uint256 endBlock;
+    uint256 forVotes;
+    uint256 againstVotes;
+    bool canceled;
+    bool executed;
+    mapping(address => Receipt) receipts;
+}
+
+struct Receipt {
+    bool hasVoted;
+    bool support;
+    uint96 votes;
+}
+
 contract User {
     Governor gov;
     IERC20 token;
@@ -162,6 +184,7 @@ contract RadicleLbpTest is DSTest {
     address constant CRP_FACTORY   = 0xed52D8E202401645eDAD1c0AA21e872498ce47D0; // CRP factory (Mainnet)
     address constant RAD_ADDR      = 0x31c8EAcBFFdD875c74b94b077895Bd78CF1E64A3; // RAD (Mainnet)
     address constant USDC_ADDR     = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC (Mainnet)
+    address constant CONTROLLER    = 0x13075a80df4A80e45e58ef871900F0E0eF2ca5cC; // Pool controller (Mainnet)
 
     // Durations in blocks.
     uint256 constant WEIGHT_CHANGE_DURATION = 12800; // 2 days
@@ -197,12 +220,6 @@ contract RadicleLbpTest is DSTest {
             keccak256(abi.encode(address(this), uint256(2))),
             bytes32(uint(100_000_000e18))
         );
-        // Set USDC balance of treasury to 0.
-        hevm.store(
-            USDC_ADDR,
-            keccak256(abi.encode(address(timelock), uint256(9))),
-            bytes32(uint(0))
-        );
 
         // Transfer half of the supply to the treasury.
         require(rad.transfer(address(timelock), 50_000_000e18));
@@ -220,7 +237,113 @@ contract RadicleLbpTest is DSTest {
         hevm.roll(block.number + 1);
     }
 
+    function test_lbp_proposal_begin() public {
+        RadicleLbp lbp = RadicleLbp(0x460E22413eE1DCAE311cf90DA83F203E3293A5fF);
+        Sale sale = Sale(0x864fDEF96374A2060Ae18f83bbEc924f174D6b35);
+
+        assertEq(address(lbp.sale()), address(sale));
+
+        uint256 saleProposal = 3;
+
+        {
+            assertEq(gov.proposalCount(), uint(3), "There are 3 proposals");
+            Governor.ProposalState state = gov.state(saleProposal);
+            assertTrue(state == Governor.ProposalState.Queued, "Proposal is queued");
+        }
+
+        assertEq(rad.balanceOf(address(proposer)), uint(1_000_000e18));
+        assertEq(rad.getCurrentVotes(address(proposer)), uint(1_000_000e18), "Proposer has enough voting power");
+
+        assertEq(sale.radTokenBalance(), lbp.RAD_BALANCE());
+        assertEq(sale.usdcTokenBalance(), lbp.USDC_BALANCE());
+
+        IConfigurableRightsPool crpPool = IConfigurableRightsPool(sale.crpPool());
+        assertEq(crpPool.getController(), address(sale), "The sale is in control of the CRP");
+
+        uint timelockRad = rad.balanceOf(address(timelock));
+        uint timelockUsdc = usdc.balanceOf(address(timelock));
+
+        {
+            (,uint256 eta,,,,,,) = gov.proposals(saleProposal);
+            hevm.warp(eta); // Timelock delay
+
+            Governor.ProposalState state = gov.state(saleProposal);
+            assertTrue(state == Governor.ProposalState.Queued, "Proposal is still queued");
+        }
+        gov.execute(saleProposal);
+        assertEq(uint(gov.state(saleProposal)), 7, "Proposal executed");
+
+        {
+            // Proposal is now executed. The sale has started.
+            BPool bPool = BPool(crpPool.bPool());
+            assert(address(bPool) != address(0)); // Pool was created
+            assertEq(crpPool.balanceOf(address(timelock)), crpPool.totalSupply(), "Timelock has 100% ownership of the pool");
+            assertEq(rad.balanceOf(address(timelock)), timelockRad - lbp.RAD_BALANCE(), "Timelock has less RAD");
+            assertEq(usdc.balanceOf(address(timelock)), timelockUsdc - lbp.USDC_BALANCE(), "Timelock has less USDC");
+            assertEq(bPool.getController(), address(crpPool), "Pool is controlled by CRP");
+            assertEq(bPool.getBalance(address(rad)), lbp.RAD_BALANCE());
+            assertEq(bPool.getBalance(address(usdc)), lbp.USDC_BALANCE());
+            assertEq(crpPool.getController(), CONTROLLER, "The CRP controller was transferred");
+
+            uint price = bPool.getSpotPriceSansFee(address(usdc), address(rad));
+            assertTrue(price < 12e6 && price > 11e6);
+
+            // Try buying some RAD.
+            User buyer = new User(gov, IERC20(address(usdc)));
+            usdc.transfer(address(buyer), 500_000e6);
+            (uint radAmountOut,) = buyer.swapExactAmountIn(
+                bPool,
+                address(usdc),
+                500_000e6,
+                address(rad),
+                1,
+                21e6
+            );
+            assertEq(usdc.balanceOf(address(buyer)), 0, "Buyer spent all their USDC");
+            assertEq(rad.balanceOf(address(buyer)), radAmountOut, "Buyer received RAD");
+
+            // Fast forward to sale end.
+            hevm.roll(block.number + WEIGHT_CHANGE_DURATION + WEIGHT_CHANGE_DELAY);
+
+            crpPool.pokeWeights();
+            uint256 radWeight = bPool.getDenormalizedWeight(address(rad));
+            uint256 usdcWeight = bPool.getDenormalizedWeight(address(usdc));
+            assertEq(radWeight, sale.RAD_END_WEIGHT() * BalancerConstants.BONE, "RAD weights are final");
+            assertEq(usdcWeight, sale.USDC_END_WEIGHT() * BalancerConstants.BONE, "USDC weights are final");
+        }
+
+        // Sale is now over. Propose to withdraw funds.
+        uint256 poolTokens = crpPool.balanceOf(address(timelock));
+        assertEq(poolTokens, crpPool.totalSupply(), "Timelock has 100% ownership of the pool");
+
+        uint exitProposal = proposer.proposeExitSale(crpPool, poolTokens - 1e14);
+        {
+            // Execute proposal.
+            hevm.roll(block.number + gov.votingDelay() + 1);
+            gov.castVote(exitProposal, true);
+            hevm.roll(block.number + gov.votingPeriod());
+            gov.queue(exitProposal);
+            hevm.warp(block.timestamp + 2 days); // Timelock delay
+            gov.execute(exitProposal);
+
+            assertEq(crpPool.balanceOf(address(timelock)), 1e14, "Timelock has traded in most of its pool tokens");
+            {
+                uint256 finalBalance = usdc.balanceOf(address(timelock));
+                uint256 expectedBalance = lbp.USDC_BALANCE() + 500_000e6; // Original amount plus sale.
+                // Check that the recovered amount is within 10 USDC of the expected amount.
+                assertTrue(expectedBalance - finalBalance <= 10e6, "Timelock recovered the USDC");
+            }
+        }
+    }
+
     function test_lbp_proposal() public {
+        // Set USDC balance of treasury to 0.
+        hevm.store(
+            USDC_ADDR,
+            keccak256(abi.encode(address(timelock), uint256(9))),
+            bytes32(uint(0))
+        );
+
         RadicleLbp lbp = deployer.deployLbp(
             BPOOL_FACTORY,
             CRP_FACTORY,
