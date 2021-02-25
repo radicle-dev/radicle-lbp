@@ -1,9 +1,13 @@
 #!/bin/sh
 set -eu -o pipefail
 
-source ./env
+export ETH_RPC_URL="https://mainnet.infura.io/v3/de5e2a8780c04964950e73b696d1bfb1"
+export SALE="0x864fDEF96374A2060Ae18f83bbEc924f174D6b35"
+export SETH_CHAIN=mainnet
+export GAS_PRICE=1gwei
+export TIMELOCK="0x8dA8f82d2BbDd896822de723F55D6EdF416130ba"
 
-if ! [[ -v GAS_PRICE && -v ETH_KEYSTORE && -v ETH_RPC_URL && -v SETH_CHAIN && -v ETH_FROM ]]; then
+if ! [[ -v ETH_KEYSTORE && -v ETH_FROM ]]; then
   echo "fatal: variables not set"
   exit 1
 fi
@@ -21,19 +25,24 @@ USDC=$(seth call $SALE 'usdcToken()(address)')
 echo "Sale at $SALE"
 echo "RAD at $RAD"
 echo "USDC at $USDC"
+
+echo "RAD sale balance: $(seth --from-wei $(seth call $SALE 'radTokenBalance()(uint256)'))"
+echo "USDC sale balance (wei): $(seth call $SALE 'usdcTokenBalance()(uint256)')"
+
+# CRP
 echo "CRP Pool at $CRP"
 echo "CRP Pool controller is $(seth call $CRP 'getController()(address)')"
+echo "CRP isPublicSwap: $(seth call $CRP "isPublicSwap()(bool)")"
 
-echo "RAD sale balance: $(seth call $SALE 'radTokenBalance()(uint256)')"
-echo "USDC sale balance: $(seth call $SALE 'usdcTokenBalance()(uint256)')"
-
+# BPOOL
 echo "Balancer Pool at $POOL"
-
 echo "Pool controller is $(seth call $POOL 'getController()(address)')"
-echo "RAD spot price: $(seth call $POOL 'getSpotPrice(address,address)(uint256)' $USDC $RAD)"
+echo "RAD actual balance: $(seth --from-wei $(seth call $POOL 'getBalance(address)(uint256)' $RAD))"
+echo "USDC actual balance (wei): $(seth call $POOL 'getBalance(address)(uint256)' $USDC)"
+echo "RAD spot price: $(seth call $POOL 'getSpotPriceSansFee(address,address)(uint256)' $USDC $RAD)"
 
-echo "RAD balance: $(seth call $POOL 'getBalance(address)(uint256)' $RAD)"
-echo "USDC balance: $(seth call $POOL 'getBalance(address)(uint256)' $USDC)"
+# TIMELOCK
+echo "Timelock RADP balance: $(seth --from-wei $(seth call $CRP 'balanceOf(address)(uint256)' $TIMELOCK))"
 
 echo "RAD denorm weights: $(seth --from-wei $(seth call $POOL 'getDenormalizedWeight(address)(uint256)' $RAD))"
 echo "USDC denorm weights: $(seth --from-wei $(seth call $POOL 'getDenormalizedWeight(address)(uint256)' $USDC))"
