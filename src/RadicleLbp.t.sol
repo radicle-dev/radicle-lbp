@@ -221,9 +221,6 @@ contract RadicleLbpTest is DSTest {
             bytes32(uint(100_000_000e18))
         );
 
-        // Transfer half of the supply to the treasury.
-        require(rad.transfer(address(timelock), 50_000_000e18));
-
         require(address(timelock) != address(0));
         require(address(gov) != address(0));
 
@@ -261,7 +258,7 @@ contract RadicleLbpTest is DSTest {
         uint timelockUsdc = usdc.balanceOf(address(timelock));
 
         assertTrue(timelockRad >= lbp.RAD_BALANCE());
-        assertTrue(timelockUsdc >= lbp.USDC_BALANCE());
+        assertTrue(timelockUsdc == lbp.USDC_BALANCE());
 
         {
             (,uint256 eta,,,,,,) = gov.proposals(saleProposal);
