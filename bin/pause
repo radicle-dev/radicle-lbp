@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu -o pipefail
 
+export ETH_FROM="0x13075a80df4A80e45e58ef871900F0E0eF2ca5cC"
 export ETH_RPC_URL="https://mainnet.infura.io/v3/de5e2a8780c04964950e73b696d1bfb1"
 export SALE="0x864fDEF96374A2060Ae18f83bbEc924f174D6b35"
 export SETH_CHAIN=mainnet
@@ -18,5 +19,11 @@ fi
 # GET CRP POOL
 CRP=$(seth call $SALE 'crpPool()(address)')
 
-# POKE POKE
-seth send --gas 200000 $CRP "pokeWeights()" -P $GAS_PRICE
+# TEST
+seth call --gas 200000 $CRP "setPublicSwap(bool)" "false"
+
+# PAUSE
+# seth send --gas 200000 $CRP "setPublicSwap(bool)" "false" -P $GAS_PRICE
+
+# ASSERT IT'S PAUSED
+echo "POOL IS PAUSED: $(seth call --gas 200000 $CRP "isPublicSwap()(bool)")"
