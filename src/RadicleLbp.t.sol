@@ -289,6 +289,12 @@ contract RadicleLbpTest is DSTest {
             uint price = bPool.getSpotPriceSansFee(address(usdc), address(rad));
             assertTrue(price < 12e6 && price > 11e6);
 
+            // Try to poke once the initial weight change delay has passed.
+            hevm.roll(block.number + WEIGHT_CHANGE_DELAY + 1);
+            crpPool.pokeWeights();
+            uint newPrice = bPool.getSpotPriceSansFee(address(usdc), address(rad));
+            assertTrue(newPrice < price, "Price is lower after poke");
+
             // Try buying some RAD.
             User buyer = new User(gov, IERC20(address(usdc)));
             usdc.transfer(address(buyer), 500_000e6);
@@ -302,6 +308,7 @@ contract RadicleLbpTest is DSTest {
             );
             assertEq(usdc.balanceOf(address(buyer)), 0, "Buyer spent all their USDC");
             assertEq(rad.balanceOf(address(buyer)), radAmountOut, "Buyer received RAD");
+            assertTrue(radAmountOut < 50_000e18 && radAmountOut > 40_000e18, "Buyer gets an expected amount of RAD");
 
             // Fast forward to sale end.
             hevm.roll(block.number + WEIGHT_CHANGE_DURATION + WEIGHT_CHANGE_DELAY);
