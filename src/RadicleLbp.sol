@@ -47,6 +47,7 @@ interface IConfigurableRightsPool is IERC20 {
     function bPool() external view returns (address);
     function pokeWeights() external;
     function setPublicSwap(bool) external;
+    function isPublicSwap() external returns (bool);
 }
 
 interface ICRPFactory {

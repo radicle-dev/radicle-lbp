@@ -251,9 +251,6 @@ contract RadicleLbpTest is DSTest {
             assertTrue(state == Governor.ProposalState.Queued, "Proposal is queued");
         }
 
-        assertEq(rad.balanceOf(address(proposer)), uint(1_000_000e18));
-        assertEq(rad.getCurrentVotes(address(proposer)), uint(1_000_000e18), "Proposer has enough voting power");
-
         assertEq(sale.radTokenBalance(), lbp.RAD_BALANCE());
         assertEq(sale.usdcTokenBalance(), lbp.USDC_BALANCE());
 
@@ -262,6 +259,9 @@ contract RadicleLbpTest is DSTest {
 
         uint timelockRad = rad.balanceOf(address(timelock));
         uint timelockUsdc = usdc.balanceOf(address(timelock));
+
+        assertTrue(timelockRad >= lbp.RAD_BALANCE());
+        assertTrue(timelockUsdc >= lbp.USDC_BALANCE());
 
         {
             (,uint256 eta,,,,,,) = gov.proposals(saleProposal);
@@ -272,6 +272,7 @@ contract RadicleLbpTest is DSTest {
         }
         gov.execute(saleProposal);
         assertEq(uint(gov.state(saleProposal)), 7, "Proposal executed");
+        assertTrue(crpPool.isPublicSwap(), "Public swapping is enabled");
 
         {
             // Proposal is now executed. The sale has started.
