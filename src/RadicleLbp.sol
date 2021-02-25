@@ -66,8 +66,8 @@ contract RadicleLbp {
     IERC20Decimal public immutable usdcToken;
     Sale public immutable sale;
 
-    uint256 public constant RAD_BALANCE = 3750000e18; // 3.75 million RAD
-    uint256 public constant USDC_BALANCE = 3500000e6; // 3.5 million USDC
+    uint256 public constant RAD_BALANCE = 3_750_000e18; // 3.75 million RAD
+    uint256 public constant USDC_BALANCE = 3_500_000e6; // 3.5 million USDC
     uint256 public constant RAD_WEIGHT = 37;
     uint256 public constant USDC_WEIGHT = 3;
     uint256 public constant SWAP_FEE = 5e15; // 0.5%
