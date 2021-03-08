@@ -30,6 +30,14 @@ interface BPool {
     function isPublicSwap() external returns (bool);
 }
 
+interface UniswapV2Factory {
+    function getPair(address, address) external returns (address);
+}
+
+interface UniswapV2Pair {
+    function getReserves() external view returns (uint112, uint112, uint32);
+}
+
 struct Proposal {
     address proposer;
     uint256 eta;
@@ -169,28 +177,60 @@ contract Proposer {
     function proposeExitSaleAndReturnLoan(
         IConfigurableRightsPool crpPool,
         uint poolTokens,
+        address radToken,
+        uint256 radLiquidity,
         address usdcToken,
+        uint256 usdcLiquidity,
+        address router,
         address lender,
         uint256 loanAmount
     ) public returns (uint) {
-        address[] memory targets = new address[](2);
-        uint[] memory values = new uint[](2);
-        string[] memory sigs = new string[](2);
-        bytes[] memory calldatas = new bytes[](2);
+        address[] memory targets = new address[](5);
+        uint[] memory values = new uint[](5);
+        string[] memory sigs = new string[](5);
+        bytes[] memory calldatas = new bytes[](5);
 
-        uint[] memory minAmountsOut = new uint[](2);
-        minAmountsOut[0] = 2_000_000e18;
-        minAmountsOut[1] = 22_000_000e6;
+        {
+            uint[] memory minAmountsOut = new uint[](2);
+            minAmountsOut[0] = 2_000_000e18;
+            minAmountsOut[1] = 22_000_000e6;
 
-        targets[0] = address(crpPool);
-        values[0] = 0;
-        sigs[0] = "exitPool(uint256,uint256[])";
-        calldatas[0] = abi.encode(poolTokens, minAmountsOut);
+            targets[0] = address(crpPool);
+            values[0] = 0;
+            sigs[0] = "exitPool(uint256,uint256[])";
+            calldatas[0] = abi.encode(poolTokens, minAmountsOut);
+        }
 
-        targets[1] = address(usdcToken);
+        targets[1] = usdcToken;
         values[1] = 0;
         sigs[1] = "transfer(address,uint256)";
         calldatas[1] = abi.encode(lender, loanAmount);
+
+        targets[2] = radToken;
+        values[2] = 0;
+        sigs[2] = "approve(address,uint256)";
+        calldatas[2] = abi.encode(router, radLiquidity);
+
+        targets[3] = usdcToken;
+        values[3] = 0;
+        sigs[3] = "approve(address,uint256)";
+        calldatas[3] = abi.encode(router, usdcLiquidity);
+
+        address timelock = address(gov.timelock());
+
+        targets[4] = router;
+        values[4] = 0;
+        sigs[4] = "addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256)";
+        calldatas[4] = abi.encode(
+            radToken,
+            usdcToken,
+            radLiquidity,
+            usdcLiquidity,
+            0,
+            0,
+            timelock,
+            block.timestamp + 12 days
+        );
 
         return gov.propose(targets, values, sigs, calldatas, "");
     }
@@ -214,6 +254,11 @@ contract RadicleLbpTest is DSTest {
     address constant RAD_ADDR      = 0x31c8EAcBFFdD875c74b94b077895Bd78CF1E64A3; // RAD (Mainnet)
     address constant USDC_ADDR     = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC (Mainnet)
     address constant CONTROLLER    = 0x13075a80df4A80e45e58ef871900F0E0eF2ca5cC; // Pool controller (Mainnet)
+    address constant UNI_ROUTER    = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D; // UniswapV2Router02 (Mainnet)
+    address constant UNI_FACTORY   = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f; // UniswapV2Factory (Mainnet)
+
+    uint256 constant RAD_LIQUIDITY = 400_000e18;
+    uint256 constant USDC_LIQUIDITY = 4_000_000e6;
 
     // Durations in blocks.
     uint256 constant WEIGHT_CHANGE_DURATION = 12800; // 2 days
@@ -375,9 +420,7 @@ contract RadicleLbpTest is DSTest {
         Sale sale = Sale(0x864fDEF96374A2060Ae18f83bbEc924f174D6b35);
         IConfigurableRightsPool crpPool = IConfigurableRightsPool(sale.crpPool());
         BPool bPool = BPool(crpPool.bPool());
-
-        uint timelockRad = rad.balanceOf(address(timelock));
-        uint timelockUsdc = usdc.balanceOf(address(timelock));
+        uint256 loanAmount = lbp.USDC_BALANCE();
 
         // Sale is now over. Propose to withdraw funds.
         uint256 poolTokens = crpPool.balanceOf(address(timelock));
@@ -388,7 +431,15 @@ contract RadicleLbpTest is DSTest {
 
         uint remainder = 1e14; // 0.0001% of pool tokens.
         uint exitProposal = proposer.proposeExitSaleAndReturnLoan(
-            crpPool, poolTokens - remainder, address(usdc), lender, lbp.USDC_BALANCE()
+            crpPool,
+            poolTokens - remainder,
+            address(rad),
+            RAD_LIQUIDITY,
+            address(usdc),
+            USDC_LIQUIDITY,
+            UNI_ROUTER,
+            lender,
+            loanAmount
         );
 
         assertEq(100e18 - remainder, 99999900000000000000);
@@ -406,16 +457,20 @@ contract RadicleLbpTest is DSTest {
         assertEq(crpPool.balanceOf(address(timelock)), remainder, "Timelock has traded in most of its pool tokens");
 
         uint256 finalBalance = usdc.balanceOf(address(timelock));
-        uint256 expectedBalance = 18_000_000e6; // Sale proceeds.
-        // Check that the recovered amount is within 10 USDC of the expected amount.
-        assertTrue(finalBalance > expectedBalance, "Timelock recovered the USDC");
         assertTrue(usdc.balanceOf(address(bPool)) > 0, "CRP Pool still has some USDC tokens");
         assertTrue(rad.balanceOf(address(bPool)) > 0, "CRP Pool still has some RAD tokens");
         assertTrue(usdc.balanceOf(address(bPool)) <= 100e6, "CRP Pool has less than or equal 100 USDC");
         assertTrue(rad.balanceOf(address(bPool)) <= 10e18, "CRP Pool has less than or equal 10 RAD");
 
         // Check loan returned.
-        assertEq(usdc.balanceOf(lender), lbp.USDC_BALANCE(), "Loan returned");
+        assertEq(usdc.balanceOf(lender), loanAmount, "Loan returned");
+
+        address pair = UniswapV2Factory(UNI_FACTORY).getPair(address(rad), address(usdc));
+        assertTrue(pair != address(0), "The pair was created");
+
+        (uint112 radReserve, uint112 usdcReserve,) = UniswapV2Pair(pair).getReserves();
+        assertEq(radReserve, RAD_LIQUIDITY, "RAD liquidity as expected");
+        assertEq(usdcReserve, USDC_LIQUIDITY, "USDC liquidity as expected");
     }
 
     function test_lbp_proposal() public {
