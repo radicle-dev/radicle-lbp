@@ -155,13 +155,42 @@ contract Proposer {
         bytes[] memory calldatas = new bytes[](1);
 
         uint[] memory minAmountsOut = new uint[](2);
-        minAmountsOut[0] = 1e18;
-        minAmountsOut[1] = 1e6;
+        minAmountsOut[0] = 2_000_000e18;
+        minAmountsOut[1] = 22_000_000e6;
 
         targets[0] = address(crpPool);
         values[0] = 0;
         sigs[0] = "exitPool(uint256,uint256[])";
         calldatas[0] = abi.encode(poolTokens, minAmountsOut);
+
+        return gov.propose(targets, values, sigs, calldatas, "");
+    }
+
+    function proposeExitSaleAndReturnLoan(
+        IConfigurableRightsPool crpPool,
+        uint poolTokens,
+        address usdcToken,
+        address lender,
+        uint256 loanAmount
+    ) public returns (uint) {
+        address[] memory targets = new address[](2);
+        uint[] memory values = new uint[](2);
+        string[] memory sigs = new string[](2);
+        bytes[] memory calldatas = new bytes[](2);
+
+        uint[] memory minAmountsOut = new uint[](2);
+        minAmountsOut[0] = 2_000_000e18;
+        minAmountsOut[1] = 22_000_000e6;
+
+        targets[0] = address(crpPool);
+        values[0] = 0;
+        sigs[0] = "exitPool(uint256,uint256[])";
+        calldatas[0] = abi.encode(poolTokens, minAmountsOut);
+
+        targets[1] = address(usdcToken);
+        values[1] = 0;
+        sigs[1] = "transfer(address,uint256)";
+        calldatas[1] = abi.encode(lender, loanAmount);
 
         return gov.propose(targets, values, sigs, calldatas, "");
     }
@@ -339,6 +368,49 @@ contract RadicleLbpTest is DSTest {
                 assertTrue(expectedBalance - finalBalance <= 10e6, "Timelock recovered the USDC");
             }
         }
+    }
+
+    function test_lbp_proposal_end() public {
+        RadicleLbp lbp = RadicleLbp(0x460E22413eE1DCAE311cf90DA83F203E3293A5fF);
+        Sale sale = Sale(0x864fDEF96374A2060Ae18f83bbEc924f174D6b35);
+        IConfigurableRightsPool crpPool = IConfigurableRightsPool(sale.crpPool());
+
+        uint timelockRad = rad.balanceOf(address(timelock));
+        uint timelockUsdc = usdc.balanceOf(address(timelock));
+
+        // Sale is now over. Propose to withdraw funds.
+        uint256 poolTokens = crpPool.balanceOf(address(timelock));
+        assertEq(poolTokens, crpPool.totalSupply(), "Timelock has 100% ownership of the pool");
+
+        address lender = 0x055E29502153aEDcFDaE8Fc15a710FF6fb5e10C9;
+        assertEq(usdc.balanceOf(lender), 0, "Lender has no USDC");
+
+        uint remainder = 1e17; // 0.1% of pool tokens.
+        uint exitProposal = proposer.proposeExitSaleAndReturnLoan(
+            crpPool, poolTokens - remainder, address(usdc), lender, lbp.USDC_BALANCE()
+        );
+
+        // Execute proposal.
+        hevm.roll(block.number + gov.votingDelay() + 1);
+        gov.castVote(exitProposal, true);
+        hevm.roll(block.number + gov.votingPeriod());
+        gov.queue(exitProposal);
+        hevm.warp(block.timestamp + 2 days); // Timelock delay
+        gov.execute(exitProposal);
+
+        assertEq(crpPool.balanceOf(address(timelock)), remainder, "Timelock has traded in most of its pool tokens");
+
+        uint256 finalBalance = usdc.balanceOf(address(timelock));
+        uint256 expectedBalance = 18_000_000e6; // Sale proceeds.
+        // Check that the recovered amount is within 10 USDC of the expected amount.
+        assertTrue(finalBalance > expectedBalance, "Timelock recovered the USDC");
+        assertTrue(usdc.balanceOf(address(crpPool)) > 0, "CRP Pool still has some USDC tokens");
+        assertTrue(rad.balanceOf(address(crpPool)) == 0, "CRP Pool still has no RAD tokens");
+        assertTrue(usdc.balanceOf(address(crpPool)) <= 100e6, "CRP Pool has less than or equal 100 USDC");
+        assertTrue(rad.balanceOf(address(crpPool)) <= 10e18, "CRP Pool has less than or equal 10 RAD");
+
+        // Check loan returned.
+        assertEq(usdc.balanceOf(lender), lbp.USDC_BALANCE(), "Loan returned");
     }
 
     function test_lbp_proposal() public {
