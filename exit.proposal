@@ -1,0 +1,14 @@
+# Exit LBP
+
+This is a proposal to complete the LBP event by exiting the pool. If executed,
+this proposal will:
+
+1. Swap the RADP pool tokens for the underlying assets (RAD and USDC)
+2. Return the 3.5M USDC loaned by the Radicle Foundation for liquidity
+
+## ACTIONS ##
+
+```
+0x750dD34Fb165bE682fAe445793AB9ab9729CDAa3 0 "exitPool(uint256,uint256[])" 99999900000000000000 [2000000000000000000000000,22000000000000]
+0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 0 "transfer(address,uint256)" 0x055E29502153aEDcFDaE8Fc15a710FF6fb5e10C9 3500000000000
+```
