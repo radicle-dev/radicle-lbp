@@ -36,6 +36,20 @@ interface UniswapV2Factory {
 
 interface UniswapV2Pair {
     function getReserves() external view returns (uint112, uint112, uint32);
+    function balanceOf(address) external view returns (uint256);
+    function totalSupply() external view returns (uint);
+    function price0CumulativeLast() external view returns (uint);
+    function sync() external;
+}
+
+interface UniswapV2Router02 {
+    function swapExactTokensForTokens(
+      uint amountIn,
+      uint amountOutMin,
+      address[] calldata path,
+      address to,
+      uint deadline
+    ) external returns (uint[] memory amounts);
 }
 
 struct Proposal {
@@ -471,6 +485,29 @@ contract RadicleLbpTest is DSTest {
         (uint112 radReserve, uint112 usdcReserve,) = UniswapV2Pair(pair).getReserves();
         assertEq(radReserve, RAD_LIQUIDITY, "RAD liquidity as expected");
         assertEq(usdcReserve, USDC_LIQUIDITY, "USDC liquidity as expected");
+
+        hevm.warp(block.timestamp + 1 days);
+        UniswapV2Pair(pair).sync();
+
+        uint256 lpTokens = UniswapV2Pair(pair).balanceOf(address(timelock));
+        assertEq(
+            uint(lpTokens), uint(UniswapV2Pair(pair).totalSupply()) - 10**3
+        );
+
+        address[] memory path = new address[](2);
+        path[0] = address(usdc);
+        path[1] = address(rad);
+
+        usdc.approve(UNI_ROUTER, 10e6);
+        UniswapV2Router02(UNI_ROUTER).swapExactTokensForTokens(
+            10e6,
+            9e17,
+            path,
+            address(0x1),
+            block.timestamp + 1 days
+        );
+        assertTrue(rad.balanceOf(address(0x1)) > 9e17 &&
+                   rad.balanceOf(address(0x1)) < 10e17, "Swapped correct amount");
     }
 
     function test_lbp_proposal() public {
