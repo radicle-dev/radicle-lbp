@@ -1,4 +1,4 @@
-# Exit LBP
+# Exit LBP & add Uniswap liquidity
 
 This is a proposal to complete the LBP event by exiting the pool. To maintain
 a liquid market, 4M USDC and 400K RAD are added to a Uniswap trading pair.
@@ -10,6 +10,18 @@ If executed, this proposal will:
 3. Approve Uniswap router for 4M USDC
 4. Approve Uniswap router for 400K RAD
 5. Add liquidity to Uniswap RAD/USDC pair via the Uniswap router
+
+After execution, the Timelock holds all Uniswap LP tokens for the RAD/USDC pair.
+
+## Notes
+
+* For this proposal to go through, the LBP must have at least 2M RAD and 22M USDC.
+* `0x750dD34Fb165bE682fAe445793AB9ab9729CDAa3` is the CRP Pool.
+* `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` is the USDC contract.
+* `0x31c8EAcBFFdD875c74b94b077895Bd78CF1E64A3` is the RAD contract.
+* `0x055E29502153aEDcFDaE8Fc15a710FF6fb5e10C9` is the Radicle Foundation address.
+* `0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D` is the UniswapV2Router02 contract.
+* `0x8dA8f82d2BbDd896822de723F55D6EdF416130ba` is the Timelock contract.
 
 ## ACTIONS ##
 
