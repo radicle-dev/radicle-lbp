@@ -13,7 +13,11 @@ If executed, this proposal will:
 
 After execution, the Timelock holds all Uniswap LP tokens for the RAD/USDC pair.
 
-To prevent front-running, the RAD/USDC balances are set through the Uniswap router *proxy* contract, deployed at `0xB76FC4EbE4fC0CC34AF440Ad79565A68Bfcb095e`. Only the Radicle Foundation can set these balances, via the `setLiquidity` function. This contract function must be called as close as possible to the execution of this proposal, to provide liquidity at the correct market price.
+To prevent front-running, the RAD/USDC balances are set through the Uniswap
+router *proxy* contract, deployed at `0xB76FC4EbE4fC0CC34AF440Ad79565A68Bfcb095e`.
+Only the Radicle Foundation can set these balances, via the `setLiquidity`
+function. This contract function must be called as close as possible to the
+execution of this proposal, to provide liquidity at the correct market price.
 
 ## Notes
 
