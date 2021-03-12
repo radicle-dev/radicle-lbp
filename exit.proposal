@@ -7,20 +7,22 @@ If executed, this proposal will:
 
 1. Remove liquidity from the LBP, by swapping the RADP pool tokens for the underlying assets (RAD and USDC)
 2. Return the 3.5M USDC loan to the Radicle Foundation
-3. Approve Uniswap router for 4M USDC
-4. Approve Uniswap router for 400K RAD
+3. Approve Uniswap router proxy for 5M USDC
+4. Approve Uniswap router proxy for 500K RAD
 5. Add liquidity to Uniswap RAD/USDC pair via the Uniswap router
 
 After execution, the Timelock holds all Uniswap LP tokens for the RAD/USDC pair.
 
+To prevent front-running, the RAD/USDC balances are set through the Uniswap router *proxy* contract, deployed at `0xB76FC4EbE4fC0CC34AF440Ad79565A68Bfcb095e`. Only the Radicle Foundation can set these balances, via the `setLiquidity` function. This contract function must be called as close as possible to the execution of this proposal, to provide liquidity at the correct market price.
+
 ## Notes
 
-* For this proposal to go through, the LBP must have at least 2M RAD and 22M USDC.
+* For this proposal to go through, the LBP must have at least 1M RAD and 20M USDC.
 * `0x750dD34Fb165bE682fAe445793AB9ab9729CDAa3` is the CRP Pool.
 * `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` is the USDC contract.
 * `0x31c8EAcBFFdD875c74b94b077895Bd78CF1E64A3` is the RAD contract.
 * `0x055E29502153aEDcFDaE8Fc15a710FF6fb5e10C9` is the Radicle Foundation address.
-* `0xB76FC4EbE4fC0CC34AF440Ad79565A68Bfcb095e` is the Uniswap Router proxy contract.
+* `0xB76FC4EbE4fC0CC34AF440Ad79565A68Bfcb095e` is the Uniswap router proxy contract.
 
 ## ACTIONS ##
 
